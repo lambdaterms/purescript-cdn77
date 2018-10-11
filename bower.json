@@ -12,7 +12,8 @@
     "purescript-effect": "^2.0.0",
     "purescript-aff": "^5.0.2",
     "purescript-affjax": "^7.0.0",
-    "purescript-transformers": "^4.1.0"
+    "purescript-transformers": "^4.1.0",
+    "purescript-simple-json": "^4.2.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^4.0.0",
