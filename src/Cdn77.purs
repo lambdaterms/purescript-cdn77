@@ -78,7 +78,7 @@ getRequestDetails
   ∷ { id ∷ RequestId, login ∷ String, passwd ∷ String}
   → Aff (Either ApiCallError ApiRequest)
 getRequestDetails params = do
-  requests ← readResponsesCustomObject "requests"
+  requests ← readResponsesCustomObject "request"
     (get "/data-queue/details-request?" params)
   pure (readJson =<< requests)
 
@@ -86,6 +86,6 @@ listRequestUrl
   ∷ { request_id ∷ RequestId, cdn_id ∷ CdnId, login ∷ String, passwd ∷ String}
   → Aff (Either ApiCallError ApiRequestUrl)
 listRequestUrl params = do
-  requests ← readResponsesCustomObject "requests"
+  requests ← readResponsesCustomObject "urls"
     (get "/data-queue/details-request?" params)
   pure (readJson =<< requests)
