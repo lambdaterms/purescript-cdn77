@@ -1,0 +1,12 @@
+{
+  "name": "purescript-cdn77",
+  "version": "0.1.0",
+  "description": "Set of bindings for CDN77 web api.",
+  "repository": "https://github.com/lambdaterms/purescript-cdn77",
+  "author": "Michał Adamczyk <michal.anks@gmail.com>",
+  "license": "BSD-3-Clause",
+  "private": false,
+  "dependencies": {
+    "xhr2": "^0.1.4"
+  }
+}
