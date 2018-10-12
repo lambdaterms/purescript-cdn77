@@ -1,7 +1,9 @@
 'use strict';
 
-exports.jsonGetParams = function(obj){
-  return Object.keys(obj).map(function(k) {
-    return encodeURIComponent(k) + '=' + encodeURIComponent(data[k]);
-  }).join('&');
+exports.urlEncodedImpl = function(makeTuple){
+  return function(obj){
+    return Object.keys(obj).map(function(k) {
+      return makeTuple(k)(obj[k].toString());
+    });
+  };
 };

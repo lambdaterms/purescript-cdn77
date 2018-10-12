@@ -7,8 +7,10 @@ import Data.Either (Either(..))
 import Data.Eq (class Eq)
 import Data.Function (($))
 import Data.List.NonEmpty (singleton)
+import Data.Maybe (Maybe)
 import Data.Nullable (Nullable)
 import Data.Semigroup ((<>))
+import Data.Show (show)
 import Foreign (ForeignError(..))
 import Simple.JSON (class ReadForeign, class WriteForeign, readImpl, writeImpl)
 
@@ -56,14 +58,14 @@ asBool = case _ of
 
 instance writeForeignSwitch ∷ WriteForeign Switch where
   writeImpl = case _ of
-    On → writeImpl "1"
-    Off → writeImpl "0"
+    On → writeImpl 1
+    Off → writeImpl 0
 
 instance readForeignSwitch ∷ ReadForeign Switch where
   readImpl frn = readImpl frn >>= case _ of
-    "0" → pure On
-    "1" → pure Off
-    x   → except $ Left (singleton $ ForeignError $ "Couldn't match switch value. Should be '0' or '1'. Was: '" <> x <> "'")
+    0 → pure On
+    1 → pure Off
+    x   → except $ Left (singleton $ ForeignError $ "Couldn't match switch value. Should be '0' or '1'. Was: '" <> show x <> "'")
 
 data RequestType = Prefetch | Purge
 
@@ -81,8 +83,24 @@ instance readForeignRequestType ∷ ReadForeign RequestType where
     x   → except $ Left (singleton $ ForeignError $ "Couldn't match request type value. Should be 'purge' or 'prefetch'. Was: '" <> x <> "'")
 
 
-type CDNResource =
-  { id ∷ CdnId  -- Your CDN Id. See how to retrieve a list of your cdns including their ids.
+data FilterType = Whitelist | Blacklist
+
+derive instance eqFilterType ∷ Eq FilterType
+
+instance writeForeignFilterType ∷ WriteForeign FilterType where
+  writeImpl = case _ of
+    Blacklist → writeImpl "blacklist"
+    Whitelist → writeImpl "whitelist"
+
+instance readForeignFilterType ∷ ReadForeign FilterType where
+  readImpl frn = readImpl frn >>= case _ of
+    "blacklist" → pure Blacklist
+    "whitelist" → pure Whitelist
+    x   → except $ Left (singleton $ ForeignError $ "Couldn't match request type value. Should be 'whitelist' or 'blacklist'. Was: '" <> x <> "'")
+
+
+type CDNResourceBase =
+  ( id ∷ CdnId  -- Your CDN Id. See how to retrieve a list of your cdns including their ids.
   , label ∷ String -- Your own label of a CDN Resource.
   , origin_url ∷ String -- URL of your content source (Origin). Doesn't have to be set when CDN Storage Id is set (that means instead of using your own URL you use our CDN Storage).
   , cname ∷ String -- Domain name that will redirect to our CDN server.
@@ -90,15 +108,37 @@ type CDNResource =
   , url_signing_on ∷ Switch -- Allow generating of secured links with expiration time. Content is not available without valid token. Valid values: '0' | '1'
   , url_signing_key ∷ Nullable String -- Key (hash) for signing URLs.
   , instant_ssl ∷ Switch -- Set to 1 if you want to have a SSL certificate for every CNAME for free.
-  , type ∷ String -- Valid values: 'standard' | 'video'
-  , storage_id ∷ StorageId -- Storage Id. See available Storages and their Id in the list of storages. Set to 0 if you want to disable CDN Storage. Ignore query string (qs_status) is set to 1 when you enable CDN Storage as Origin.
+  , type ∷ Maybe String -- Valid values: 'standard' | 'video'
+  , storage_id ∷ Nullable StorageId -- Storage Id. See available Storages and their Id in the list of storages. Set to 0 if you want to disable CDN Storage. Ignore query string (qs_status) is set to 1 when you enable CDN Storage as Origin.
   , qs_status ∷ Switch -- By default the entire URL is treated as a separate cacheable item. If you want to override this, set qs_status to '1', otherwise to '0'. If you have CDN Storage set as Origin, qs_status is automatically set to 1. Valid values: '0' | '1'
   , setcookie_status ∷ Switch -- To cache Set-Cookies responses, set this to '1' (disabled by default). Valid values: '0' | '1'
   , other_cnames ∷ Array String  -- Array. Maximum length of array is 9.
   , mp4_pseudo_on ∷ Switch -- Allow streaming video in mp4 format. For video, a CDN Resource is automatically enabled. Valid values: '0' | '1'
-  }
+  )
 
-type CDNResourceDetails = CDNResource
+type CDNResourceAdditional base =
+  ( gp_countries :: Array String -- Sets geo protection list of whitelisted/blacklisted countries, enter the country's 2 character ISO code.
+  , gp_type :: Nullable FilterType -- Sets geo protection type. Valid values: 'blacklist' | 'whitelist'
+  , ipp_addresses :: Array String -- Sets IP protection list of whitelisted/blacklisted addresses. Accepts CIDR notation only.
+  , ipp_type :: FilterType -- Sets IP protection type. Valid values: 'blacklist' | 'whitelist'
+  , platform :: String -- Check more about our new NeXt Generation platform. Valid values: 'nxg' | 'old'
+  , cdn_url :: String -- ?
+  , origin_port :: Maybe Int  -- You can specify port through which we will access your origin.
+  , https_redirect_code :: Maybe String -- not documented
+  , ignored_query_params :: Maybe (Array String) -- not documented
+  , hlp_type :: Maybe FilterType -- not documented
+  , hlp_deny_empty_referer :: Maybe Switch -- not documented
+  , hlp_referer_domains :: Maybe (Array String) -- not documented
+  , http2 :: Maybe Switch -- not documented
+  , streaming_playlist_bypass :: Maybe Switch -- not documented
+  , forward_host_header :: Maybe Switch -- not documented
+  , url_signing_type :: Maybe String -- not documented
+  | base
+  )
+
+type CDNResource = Record CDNResourceBase
+
+type CDNResourceDetails = Record (CDNResourceAdditional CDNResourceBase)
 
 
 type ApiRequest =
