@@ -17,7 +17,7 @@ import Data.Unit (Unit, unit)
 import Debug.Trace (trace)
 import Effect.Aff (Aff)
 import Simple.JSON (class ReadForeign, class WriteForeign)
-import Types (ApiCallError, ApiRequest, ApiRequestUrl, CDNResourceDetails, CdnId, RequestId, RequestType)
+import Types (ApiCallError, ApiRequest, ApiRequestUrl, CDNResourceDetails, CdnId, Report, ReportType, RequestId, RequestType, Storage, StorageId, Timestamp)
 import Utils (readResponsesCustomObject, readStandardResponse, urlEncoded)
 import Utils as Utils
 
@@ -88,3 +88,42 @@ listRequestUrl
   ∷ { request_id ∷ RequestId, cdn_id ∷ CdnId, login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff ApiRequestUrl
 listRequestUrl params = readResponsesCustomObject "urls" (get "/data-queue/list-url" params)
+
+
+--------------------------------------------------------
+------------------------ STORAGE -----------------------
+
+createStorage
+  ∷ { login ∷ String, passwd ∷ String, zone_name ∷ String, storage_location_id ∷ String }
+  → ExceptT ApiCallError Aff Storage
+createStorage params = readResponsesCustomObject "storage" (post "/storage/create" params)
+
+storageDetails
+  ∷ { login ∷ String, passwd ∷ String, id ∷ StorageId }
+  → ExceptT ApiCallError Aff Storage
+storageDetails params = readResponsesCustomObject "storage" (get "/storage/details" params)
+
+deleteStorage
+  ∷ { login ∷ String, passwd ∷ String, id ∷ StorageId }
+  → ExceptT ApiCallError Aff Unit
+deleteStorage params = readStandardResponse (post "/storage/delete" params) *> pure unit
+
+listStorages
+  ∷ { login ∷ String, passwd ∷ String }
+  → ExceptT ApiCallError Aff (Array Storage)
+listStorages params = readResponsesCustomObject "storages" (get "/storage/list" params)
+
+addStorageCdnResources
+  ∷ { login ∷ String, passwd ∷ String, id ∷ StorageId, cdn_ids ∷ Array CdnId }
+  → ExceptT ApiCallError Aff Unit
+addStorageCdnResources params = readStandardResponse (post "/storage/add-cdn-resource" params) *> pure unit
+
+
+--------------------------------------------------------
+------------------------ REPORT -----------------------
+
+reportDetails
+  ∷ { login ∷ String, passwd ∷ String, type ∷ ReportType
+    , from ∷ Timestamp, to ∷ Timestamp, cdn_ids ∷ Array CdnId}
+  → ExceptT ApiCallError Aff Report
+reportDetails params = readResponsesCustomObject "report" (get "/report/details" params)

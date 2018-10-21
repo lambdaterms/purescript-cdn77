@@ -11,7 +11,7 @@ import Data.Maybe (Maybe)
 import Data.Nullable (Nullable)
 import Data.Semigroup ((<>))
 import Data.Show (show)
-import Foreign (ForeignError(..))
+import Foreign (Foreign, ForeignError(..))
 import Simple.JSON (class ReadForeign, class WriteForeign, readImpl, writeImpl)
 
 -- [TODO]
@@ -40,6 +40,11 @@ newtype StorageId = StorageId Int
 
 derive newtype instance writeForeignStorageId ∷ WriteForeign StorageId
 derive newtype instance readForeignStorageId ∷ ReadForeign StorageId
+
+newtype StorageLocationId = StorageLocationId String
+
+derive newtype instance writeForeignStorageLocationId ∷ WriteForeign StorageLocationId
+derive newtype instance readForeignStorageLocationId ∷ ReadForeign StorageLocationId
 
 
 data Switch = On | Off
@@ -159,3 +164,55 @@ type ApiRequestUrl =
  , finished ∷ Nullable Timestamp -- Until the URL has proceeded value of 'finished’ is NULL. After that the timestamp is shown. Remember that an URL may be marked as finished whether it was proceeded successfully or not.
  , finished_successfully ∷ Boolean -- Whether the purge or prefetch of a given URL was successful or not.
  }
+
+
+--------------------- STORAGE ---------------------
+
+type StorageCredentials =
+  { protocol ∷ String -- TODO parsing. comma-separated list of protocols "FTP, SFTP"
+  , host ∷ String
+  , user ∷ String
+  , pass ∷ String }
+
+type Storage =
+ { id ∷ StorageId -- Retrieve list of storages including their ids with the list method.
+ , zone_name ∷ String -- Zone name has to be unique. Allowed characters: latin alphabet characters, numbers, spaces and '-', '_' symbols.
+ , storage_location_id ∷ StorageLocationId -- Storage Location Id. Retrieve list of available storage locations including their ids with the list storage location method.
+ , used_space ∷ String -- TODO this would be nicer with some proper parsing. Amount of space used by your data on the CDN Storage.
+ , cdn_resources ∷ Array CdnId -- IDs of CDN Resources using this storage.
+ , credentials ∷ StorageCredentials -- Object with params: protocol, host, user, pass.
+ }
+
+
+--------------------- REPORT ---------------------
+
+data ReportType
+  = Bandwidth
+  | Costs
+  | HitMiss
+  | Traffic
+
+derive instance eqReportType ∷ Eq ReportType
+
+instance writeForeignReportType ∷ WriteForeign ReportType where
+  writeImpl = case _ of
+    Bandwidth → writeImpl "bandwidth"
+    Costs → writeImpl "costs"
+    HitMiss → writeImpl "hit-miss"
+    Traffic → writeImpl "traffic"
+
+instance readForeignReportType ∷ ReadForeign ReportType where
+  readImpl frn = readImpl frn >>= case _ of
+    "bandwidth" → pure Bandwidth
+    "costs" → pure Costs
+    "hit-miss" → pure HitMiss
+    "traffic" → pure Traffic
+    x → except $ Left (singleton $ ForeignError $ "Couldn't match RequestType value. Should be one of:     'bandwidth', 'costs' , 'hit-miss', 'traffic'. Was: '" <> show x <> "'")
+
+type ReportData = Foreign -- TODO
+
+type Report =
+  { unit ∷ String -- USD (for costs) | B (for traffic) | bps (for bandwidth)
+  , data ∷ ReportData -- Contains another objects - its identificators are cdn ids and has following params: EU (Europe), SA (South America), NA (North America), AS (Asia), AU (Australia), AF (Africa). Each param contains float value. Example of report object:
+  }
+
