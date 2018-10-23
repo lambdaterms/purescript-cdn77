@@ -7,3 +7,18 @@ exports.urlEncodedImpl = function(makeTuple){
     });
   };
 };
+
+
+exports.coerceJsonHelperImpl = function(obj){
+
+  if(obj != null && typeof(obj) == 'object'){
+    var newObj = {};
+    Object.keys(obj).map(function(k) {
+      newObj[k.toLowerCase()] = exports.coerceJsonHelperImpl(obj[k]);
+    });
+    return newObj;
+  }
+  else{
+    return obj;
+  }
+};

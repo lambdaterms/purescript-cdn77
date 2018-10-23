@@ -4,10 +4,10 @@ import Affjax (Response)
 import Affjax (get, post) as AffJax
 import Affjax.RequestBody (formURLEncoded) as RequestBody
 import Affjax.ResponseFormat as ResponseFormat
+import Common (readResponsesCustomObject, readStandardResponse)
 import Control.Applicative (pure)
 import Control.Apply ((*>))
-import Control.Category ((<<<))
-import Control.Monad.Except (ExceptT, except)
+import Control.Monad.Except (ExceptT)
 import Data.Argonaut.Core (Json)
 import Data.Either (Either)
 import Data.FormURLEncoded (encode)
@@ -16,10 +16,9 @@ import Data.Semigroup ((<>))
 import Data.Unit (Unit, unit)
 import Debug.Trace (trace)
 import Effect.Aff (Aff)
-import Simple.JSON (class ReadForeign, class WriteForeign)
+import Simple.JSON (class WriteForeign)
 import Types (ApiCallError, ApiRequest, ApiRequestUrl, CDNResourceDetails, CdnId, Report, ReportType, RequestId, RequestType, Storage, StorageId, Timestamp)
-import Utils (readResponsesCustomObject, readStandardResponse, urlEncoded)
-import Utils as Utils
+import Utils (urlEncoded)
 
 apiUrl ∷ String
 apiUrl = "https://api.cdn77.com/v2.0"
@@ -36,9 +35,6 @@ post endpoint params = AffJax.post ResponseFormat.json (apiUrl <> endpoint) (Req
   let u = urlEncoded params
   in trace (encode u) $ const u)
 
-
-readJson ∷ ∀ a. ReadForeign a ⇒ Json → ExceptT ApiCallError Aff a
-readJson = except <<< Utils.readJson
 
 -------------------------------------------------------
 --------------------- CDNResources --------------------

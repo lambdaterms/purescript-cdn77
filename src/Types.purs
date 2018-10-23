@@ -1,21 +1,23 @@
 module Types where
 
 import Control.Applicative (pure)
-import Control.Bind ((>=>), (>>=), bind)
+import Control.Bind (bind, (>=>), (>>=))
 import Control.Category ((<<<))
 import Control.Monad.Except (except)
 import Data.Either (Either(..))
 import Data.Eq (class Eq)
 import Data.Function (($))
 import Data.Functor (map)
+import Data.Int as Data.Int
 import Data.List.NonEmpty (singleton)
-import Data.Maybe (Maybe)
+import Data.Maybe (Maybe(..))
 import Data.Nullable (Nullable)
 import Data.Semigroup ((<>))
-import Data.Show (show)
+import Data.Show (class Show, show)
 import Data.Traversable (sequence)
 import Foreign (F, Foreign, ForeignError(..))
-import Simple.JSON (class ReadForeign, class WriteForeign, readImpl, readJSON', writeImpl)
+import Simple.JSON (class ReadForeign, class WriteForeign, readImpl, writeImpl, writeJSON)
+import Utils (coerceJsonHelperImpl)
 
 -- [TODO]
 type Timestamp = String
@@ -28,30 +30,35 @@ newtype CdnId = CdnId Int
 
 derive newtype instance writeForeignCdnId ∷ WriteForeign CdnId
 derive newtype instance readForeignCdnId ∷ ReadForeign CdnId
+derive newtype instance showCdnId ∷ Show CdnId
 derive newtype instance eqCdnId ∷ Eq CdnId
 
 newtype UrlId = UrlId Int
 
 derive newtype instance writeForeignUrlId ∷ WriteForeign UrlId
 derive newtype instance readForeignUrlId ∷ ReadForeign UrlId
+derive newtype instance showUrlId ∷ Show UrlId
 derive newtype instance eqUrlId ∷ Eq UrlId
 
 newtype RequestId = RequestId Int
 
 derive newtype instance writeForeignRequestId ∷ WriteForeign RequestId
 derive newtype instance readForeignRequestId ∷ ReadForeign RequestId
+derive newtype instance showRequestId ∷ Show RequestId
 derive newtype instance eqRequestId ∷ Eq RequestId
 
 newtype StorageId = StorageId Int
 
 derive newtype instance writeForeignStorageId ∷ WriteForeign StorageId
 derive newtype instance readForeignStorageId ∷ ReadForeign StorageId
+derive newtype instance showStorageId ∷ Show StorageId
 derive newtype instance eqStorageId ∷ Eq StorageId
 
 newtype StorageLocationId = StorageLocationId String
 
 derive newtype instance writeForeignStorageLocationId ∷ WriteForeign StorageLocationId
 derive newtype instance readForeignStorageLocationId ∷ ReadForeign StorageLocationId
+derive newtype instance showStorageLocationId ∷ Show StorageLocationId
 derive newtype instance eqStorageLocationId ∷ Eq StorageLocationId
 
 
@@ -228,6 +235,9 @@ instance writeForeignReportUnit ∷ WriteForeign ReportUnit where
     Bytes → writeImpl "B"
     Bps → writeImpl "bps"
 
+instance showReportUnit ∷ Show ReportUnit where
+  show = writeJSON
+
 instance readForeignReportUnit ∷ ReadForeign ReportUnit where
   readImpl frn = readImpl frn >>= case _ of
     "USD" → pure Usd
@@ -249,6 +259,9 @@ newtype ReportData = ReportData (Array { cdnId ∷ CdnId , regions ∷ RegionsRe
 
 derive instance eqReportData ∷ Eq ReportData
 
+instance showReportData ∷ Show ReportData where
+  show (ReportData rd)= show rd
+
 foreign import parseReportStructureImpl
   ∷ ∀ a
   . (String → F ReportData) -- error function
@@ -258,22 +271,23 @@ foreign import parseReportStructureImpl
 
 
 instance readForeignReportData ∷ ReadForeign ReportData where
-  readImpl = parseReportStructureImpl err pure >=> (map ReportData <<< sequence <<< map parseRegions)
+  readImpl = (parseReportStructureImpl err pure <<< coerceJsonHelperImpl) >=> (map ReportData <<< sequence <<< map parseRegions)
 
     where
       err msg = except $ Left (singleton $ ForeignError $ "Couldn't parse ReportData value from string: '' " <> show msg <> " ''")
-      parseRegions {cdnId, regions} = do
+      parseRegions ent@{cdnId, regions} = do
         rr ← readImpl regions
-        id ← readImpl cdnId
-        pure {cdnId: id, regions: rr}
-
+        id ← readString cdnId
+        id' <- case Data.Int.fromString id of
+          Nothing -> except $ Left $ singleton $ ForeignError $ "Can't parse '" <> id <> "' as an CdnId (Int)"
+          Just idn -> pure $ CdnId idn
+        pure {cdnId: id', regions: rr}
+        where
+          readString :: Foreign -> F String
+          readString = readImpl
 
 
 type Report =
   { unit ∷ ReportUnit -- USD (for costs) | B (for traffic) | bps (for bandwidth)
-  , data ∷ ReportData -- Contains another objects - its identificators are cdn ids and has following params: EU (Europe), SA (South America), NA (North America), AS (Asia), AU (Australia), AF (Africa). Each param contains float value. Example of report object:
+  , data ∷ ReportData
   }
-
-
-readSth ∷ String → F Report
-readSth = readJSON'
