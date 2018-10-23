@@ -1,18 +1,21 @@
 module Types where
 
 import Control.Applicative (pure)
-import Control.Bind ((>>=))
+import Control.Bind ((>=>), (>>=), bind)
+import Control.Category ((<<<))
 import Control.Monad.Except (except)
 import Data.Either (Either(..))
 import Data.Eq (class Eq)
 import Data.Function (($))
+import Data.Functor (map)
 import Data.List.NonEmpty (singleton)
 import Data.Maybe (Maybe)
 import Data.Nullable (Nullable)
 import Data.Semigroup ((<>))
 import Data.Show (show)
-import Foreign (Foreign, ForeignError(..))
-import Simple.JSON (class ReadForeign, class WriteForeign, readImpl, writeImpl)
+import Data.Traversable (sequence)
+import Foreign (F, Foreign, ForeignError(..))
+import Simple.JSON (class ReadForeign, class WriteForeign, readImpl, readJSON', writeImpl)
 
 -- [TODO]
 type Timestamp = String
@@ -25,26 +28,31 @@ newtype CdnId = CdnId Int
 
 derive newtype instance writeForeignCdnId ∷ WriteForeign CdnId
 derive newtype instance readForeignCdnId ∷ ReadForeign CdnId
+derive newtype instance eqCdnId ∷ Eq CdnId
 
 newtype UrlId = UrlId Int
 
 derive newtype instance writeForeignUrlId ∷ WriteForeign UrlId
 derive newtype instance readForeignUrlId ∷ ReadForeign UrlId
+derive newtype instance eqUrlId ∷ Eq UrlId
 
 newtype RequestId = RequestId Int
 
 derive newtype instance writeForeignRequestId ∷ WriteForeign RequestId
 derive newtype instance readForeignRequestId ∷ ReadForeign RequestId
+derive newtype instance eqRequestId ∷ Eq RequestId
 
 newtype StorageId = StorageId Int
 
 derive newtype instance writeForeignStorageId ∷ WriteForeign StorageId
 derive newtype instance readForeignStorageId ∷ ReadForeign StorageId
+derive newtype instance eqStorageId ∷ Eq StorageId
 
 newtype StorageLocationId = StorageLocationId String
 
 derive newtype instance writeForeignStorageLocationId ∷ WriteForeign StorageLocationId
 derive newtype instance readForeignStorageLocationId ∷ ReadForeign StorageLocationId
+derive newtype instance eqStorageLocationId ∷ Eq StorageLocationId
 
 
 data Switch = On | Off
@@ -209,10 +217,63 @@ instance readForeignReportType ∷ ReadForeign ReportType where
     "traffic" → pure Traffic
     x → except $ Left (singleton $ ForeignError $ "Couldn't match RequestType value. Should be one of:     'bandwidth', 'costs' , 'hit-miss', 'traffic'. Was: '" <> show x <> "'")
 
-type ReportData = Foreign -- TODO
+data ReportUnit
+  = Usd -- for costs
+  | Bytes -- for traffic
+  | Bps -- for bandwidth
+
+instance writeForeignReportUnit ∷ WriteForeign ReportUnit where
+  writeImpl = case _ of
+    Usd → writeImpl "USD"
+    Bytes → writeImpl "B"
+    Bps → writeImpl "bps"
+
+instance readForeignReportUnit ∷ ReadForeign ReportUnit where
+  readImpl frn = readImpl frn >>= case _ of
+    "USD" → pure Usd
+    "B" → pure Bytes
+    "bps" → pure Bps
+    x   → except $ Left (singleton $ ForeignError $ "Couldn't match ReportUnit value. Should be 'USD', 'B' or 'bps'. Was: '" <> show x <> "'")
+
+derive instance eqReportUnit ∷ Eq ReportUnit
+
+type RegionsReport =
+  { eu ∷ Number
+  , sa ∷ Number
+  , na ∷ Number
+  , as ∷ Number
+  , au ∷ Number
+  , af ∷ Number }
+
+newtype ReportData = ReportData (Array { cdnId ∷ CdnId , regions ∷ RegionsReport } )
+
+derive instance eqReportData ∷ Eq ReportData
+
+foreign import parseReportStructureImpl
+  ∷ ∀ a
+  . (String → F ReportData) -- error function
+  → (a → F a) -- success function
+  → Foreign
+  → F (Array {cdnId ∷ Foreign, regions ∷ Foreign})
+
+
+instance readForeignReportData ∷ ReadForeign ReportData where
+  readImpl = parseReportStructureImpl err pure >=> (map ReportData <<< sequence <<< map parseRegions)
+
+    where
+      err msg = except $ Left (singleton $ ForeignError $ "Couldn't parse ReportData value from string: '' " <> show msg <> " ''")
+      parseRegions {cdnId, regions} = do
+        rr ← readImpl regions
+        id ← readImpl cdnId
+        pure {cdnId: id, regions: rr}
+
+
 
 type Report =
-  { unit ∷ String -- USD (for costs) | B (for traffic) | bps (for bandwidth)
+  { unit ∷ ReportUnit -- USD (for costs) | B (for traffic) | bps (for bandwidth)
   , data ∷ ReportData -- Contains another objects - its identificators are cdn ids and has following params: EU (Europe), SA (South America), NA (North America), AS (Asia), AU (Australia), AF (Africa). Each param contains float value. Example of report object:
   }
 
+
+readSth ∷ String → F Report
+readSth = readJSON'
