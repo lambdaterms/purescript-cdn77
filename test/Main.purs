@@ -6,7 +6,8 @@ import Data.Argonaut (class DecodeJson, class EncodeJson, decodeJson, encodeJson
 import Data.Either (Either(..), either)
 import Data.Maybe (Maybe(..))
 import Effect (Effect)
-import Simple.JSON (class ReadForeign, class WriteForeign, read, write)
+import Foreign (Foreign)
+import Simple.JSON (class ReadForeign, class WriteForeign, E, read, write)
 import Test.QuickCheck (class Arbitrary, Result(..), (<?>), (===))
 import Test.Unit (suite, test)
 import Test.Unit.Assert as Assert
@@ -51,6 +52,8 @@ main = runTest $ do
     test "x@{ a :: Int, b :: Number, c :: String, d :: Array String } -> Json -> Foreign -> x"
       (quickCheck foreign2jsonObject)
 
+    test "Array a -> Json -> Foreign ->  Array a -------- "
+      (quickCheck (json2foreignArray (Proxy :: Proxy TestObj)))
   where
 
     testAssert msg t = test msg (t >>= Assert.assert msg)
@@ -88,6 +91,20 @@ main = runTest $ do
           Just x  -> Right x
 
 
+    json2foreignArray :: forall a. Arbitrary a => Show a => Eq a => EncodeJson a => DecodeJson a => ReadForeign a => WriteForeign a => Proxy a -> Array a -> Result
+    json2foreignArray p x0 =
+      let
+        json1 = encodeJson  x0
+        x1E = readArray (unsafeCoerce json1)
+      in
+        case x1E of
+          Left err -> Failed $ "Error: " <> show err <> " can't read from encoded json"
+          Right x1 -> x1 === x0
+
+      where
+        readArray :: ReadForeign a => Foreign -> E (Array a)
+        readArray = read
+
 
     json2foreignSimple :: forall a. Arbitrary a => Show a => Eq a => EncodeJson a => DecodeJson a => ReadForeign a => WriteForeign a => Proxy a -> a -> Result
     json2foreignSimple p x0 =
@@ -121,6 +138,8 @@ newtype TestObj = TestObj TestObjR
 derive newtype instance readForeignTestObj :: ReadForeign TestObj
 derive newtype instance writeForeignTestObj :: WriteForeign TestObj
 derive newtype instance arbitrartyForeignTestObj :: Arbitrary TestObj
+derive newtype instance showForeignTestObj :: Show TestObj
+derive newtype instance eqForeignTestObj :: Eq TestObj
 
 instance decodeJsonTestObj :: DecodeJson TestObj where
   decodeJson json = do
