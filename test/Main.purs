@@ -56,7 +56,7 @@ main = runTest $ do
     testAssert msg t = test msg (t >>= Assert.assert msg)
 
     json2foreignObject :: TestObjR -> Result
-    json2foreignObject x0@{a:a0, b:b0, c:c0,d:d0} =
+    json2foreignObject x0 =
       let
         json1 = encodeJson (TestObj x0)
         x1E = read (unsafeCoerce json1)
