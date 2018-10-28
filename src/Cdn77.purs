@@ -67,7 +67,7 @@ purgeAll params = readStandardResponse (post "/data/purge-all" params) *> pure u
 listRequests
   ∷ { type ∷ RequestType, cdn_id ∷ CdnId, login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff (Array ApiRequest)
-listRequests params = readResponsesCustomObject "requests" (get "/data-queue/list-request" params)
+listRequests params = readResponsesOptionalCustomObject "requests" [] (get "/data-queue/list-request" params)
 
 getRequestDetails
   ∷ { id ∷ RequestId, login ∷ String, passwd ∷ String }
@@ -101,7 +101,7 @@ deleteStorage params = readStandardResponse (post "/storage/delete" params) *> p
 listStorages
   ∷ { login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff (Array Storage)
-listStorages params = readResponsesCustomObject "storages" (get "/storage/list" params)
+listStorages params = readResponsesOptionalCustomObject "storages" [] (get "/storage/list" params)
 
 addStorageCdnResources
   ∷ { login ∷ String, passwd ∷ String, id ∷ StorageId, cdn_ids ∷ Array CdnId }
