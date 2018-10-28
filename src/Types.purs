@@ -3,14 +3,14 @@ module Types where
 import Control.Applicative (pure)
 import Control.Bind (bind, (>=>), (>>=))
 import Control.Category ((<<<))
-import Control.Monad.Except (except)
+import Control.Monad.Except (except, runExceptT)
 import Data.Either (Either(..))
 import Data.Eq (class Eq)
 import Data.Function (($))
 import Data.Functor (map)
-import Data.Int as Data.Int
 import Data.List.NonEmpty (singleton)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (Maybe)
+import Data.Newtype (unwrap)
 import Data.Nullable (Nullable)
 import Data.Semigroup ((<>))
 import Data.Show (class Show, show)
@@ -24,43 +24,59 @@ type Timestamp = String
 
 data ApiCallError = RequestError String
                   | ServerReponseError String
+                  | ReturnedObjectTypeError String
                   | ResourceError String
 
-newtype CdnId = CdnId Int
 
+readImplStringOrInt :: Foreign -> F String
+readImplStringOrInt frn = do
+    case unwrap $ runExceptT (readInt frn) of
+      Right i -> pure (show i)
+      Left x -> readImpl frn
+    where
+      readInt :: Foreign -> F Int
+      readInt = readImpl
+
+newtype CdnId = CdnId String
+
+instance readForeignCdnId ∷ ReadForeign CdnId where
+  readImpl = map CdnId <<< readImplStringOrInt
 derive newtype instance writeForeignCdnId ∷ WriteForeign CdnId
-derive newtype instance readForeignCdnId ∷ ReadForeign CdnId
 derive newtype instance showCdnId ∷ Show CdnId
 derive newtype instance eqCdnId ∷ Eq CdnId
 
-newtype UrlId = UrlId Int
 
+newtype UrlId = UrlId String
+
+instance readForeignUrlId ∷ ReadForeign UrlId where
+  readImpl = map UrlId <<< readImplStringOrInt
 derive newtype instance writeForeignUrlId ∷ WriteForeign UrlId
-derive newtype instance readForeignUrlId ∷ ReadForeign UrlId
 derive newtype instance showUrlId ∷ Show UrlId
 derive newtype instance eqUrlId ∷ Eq UrlId
 
-newtype RequestId = RequestId Int
+newtype RequestId = RequestId String
 
+instance readForeignRequestId ∷ ReadForeign RequestId where
+  readImpl = map RequestId <<< readImplStringOrInt
 derive newtype instance writeForeignRequestId ∷ WriteForeign RequestId
-derive newtype instance readForeignRequestId ∷ ReadForeign RequestId
 derive newtype instance showRequestId ∷ Show RequestId
 derive newtype instance eqRequestId ∷ Eq RequestId
 
-newtype StorageId = StorageId Int
+newtype StorageId = StorageId String
 
+instance readForeignStorageId ∷ ReadForeign StorageId where
+  readImpl = map StorageId <<< readImplStringOrInt
 derive newtype instance writeForeignStorageId ∷ WriteForeign StorageId
-derive newtype instance readForeignStorageId ∷ ReadForeign StorageId
 derive newtype instance showStorageId ∷ Show StorageId
 derive newtype instance eqStorageId ∷ Eq StorageId
 
 newtype StorageLocationId = StorageLocationId String
 
+instance readForeignStorageLocationId ∷ ReadForeign StorageLocationId where
+  readImpl = map StorageLocationId <<< readImplStringOrInt
 derive newtype instance writeForeignStorageLocationId ∷ WriteForeign StorageLocationId
-derive newtype instance readForeignStorageLocationId ∷ ReadForeign StorageLocationId
 derive newtype instance showStorageLocationId ∷ Show StorageLocationId
 derive newtype instance eqStorageLocationId ∷ Eq StorageLocationId
-
 
 data Switch = On | Off
 
@@ -118,6 +134,21 @@ instance readForeignFilterType ∷ ReadForeign FilterType where
     "whitelist" → pure Whitelist
     x   → except $ Left (singleton $ ForeignError $ "Couldn't match request type value. Should be 'whitelist' or 'blacklist'. Was: '" <> x <> "'")
 
+data OriginScheme = HttpScheme | HttpsScheme
+
+derive instance eqOriginScheme ∷ Eq OriginScheme
+
+instance writeForeignOriginScheme ∷ WriteForeign OriginScheme where
+  writeImpl = case _ of
+    HttpScheme → writeImpl "http"
+    HttpsScheme → writeImpl "https"
+
+instance readForeignOriginScheme ∷ ReadForeign OriginScheme where
+  readImpl frn = readImpl frn >>= case _ of
+    "http" → pure HttpScheme
+    "https" → pure HttpsScheme
+    x   → except $ Left (singleton $ ForeignError $ "Couldn't match request type value. Should be 'http' or 'https'. Was: '" <> x <> "'")
+
 
 type CDNResourceBase =
   ( id ∷ CdnId  -- Your CDN Id. See how to retrieve a list of your cdns including their ids.
@@ -128,7 +159,7 @@ type CDNResourceBase =
   , url_signing_on ∷ Switch -- Allow generating of secured links with expiration time. Content is not available without valid token. Valid values: '0' | '1'
   , url_signing_key ∷ Nullable String -- Key (hash) for signing URLs.
   , instant_ssl ∷ Switch -- Set to 1 if you want to have a SSL certificate for every CNAME for free.
-  , type ∷ Maybe String -- Valid values: 'standard' | 'video'
+  , type ∷ Maybe (Nullable String) -- Valid values: 'standard' | 'video'
   , storage_id ∷ Nullable StorageId -- Storage Id. See available Storages and their Id in the list of storages. Set to 0 if you want to disable CDN Storage. Ignore query string (qs_status) is set to 1 when you enable CDN Storage as Origin.
   , qs_status ∷ Switch -- By default the entire URL is treated as a separate cacheable item. If you want to override this, set qs_status to '1', otherwise to '0'. If you have CDN Storage set as Origin, qs_status is automatically set to 1. Valid values: '0' | '1'
   , setcookie_status ∷ Switch -- To cache Set-Cookies responses, set this to '1' (disabled by default). Valid values: '0' | '1'
@@ -140,22 +171,22 @@ type CDNResourceAdditional base =
   ( gp_countries :: Array String -- Sets geo protection list of whitelisted/blacklisted countries, enter the country's 2 character ISO code.
   , gp_type :: Nullable FilterType -- Sets geo protection type. Valid values: 'blacklist' | 'whitelist'
   , ipp_addresses :: Array String -- Sets IP protection list of whitelisted/blacklisted addresses. Accepts CIDR notation only.
-  , ipp_type :: FilterType -- Sets IP protection type. Valid values: 'blacklist' | 'whitelist'
+  , ipp_type :: Nullable FilterType -- Sets IP protection type. Valid values: 'blacklist' | 'whitelist'
   , platform :: String -- Check more about our new NeXt Generation platform. Valid values: 'nxg' | 'old'
   , cdn_url :: String -- ?
-  , origin_port :: Maybe Int  -- You can specify port through which we will access your origin.
-  , https_redirect_code :: Maybe String -- not documented
+  , origin_port :: Maybe (Nullable Int)  -- You can specify port through which we will access your origin.
+  , origin_scheme :: OriginScheme  -- URL scheme of the Origin. Valid values: 'http' | 'https'
+  , https_redirect_code :: Maybe (Nullable String) -- not documented
   , ignored_query_params :: Maybe (Array String) -- not documented
-  , hlp_type :: Maybe FilterType -- not documented
-  , hlp_deny_empty_referer :: Maybe Switch -- not documented
+  , hlp_type :: Maybe (Nullable FilterType) -- not documented
+  , hlp_deny_empty_referer :: Maybe (Nullable Switch) -- not documented
   , hlp_referer_domains :: Maybe (Array String) -- not documented
-  , http2 :: Maybe Switch -- not documented
-  , streaming_playlist_bypass :: Maybe Switch -- not documented
-  , forward_host_header :: Maybe Switch -- not documented
-  , url_signing_type :: Maybe String -- not documented
+  , http2 :: Maybe (Nullable Switch) -- not documented
+  , streaming_playlist_bypass :: Maybe (Nullable Switch) -- not documented
+  , forward_host_header :: Maybe (Nullable Switch)-- not documented
+  , url_signing_type :: Maybe (Nullable String) -- not documented
   | base
   )
-
 type CDNResource = Record CDNResourceBase
 
 type CDNResourceDetails = Record (CDNResourceAdditional CDNResourceBase)
@@ -277,10 +308,7 @@ instance readForeignReportData ∷ ReadForeign ReportData where
       err msg = except $ Left (singleton $ ForeignError $ "Couldn't parse ReportData value from string: '' " <> show msg <> " ''")
       parseRegions ent@{cdnId, regions} = do
         rr ← readImpl regions
-        id ← readString cdnId
-        id' <- case Data.Int.fromString id of
-          Nothing -> except $ Left $ singleton $ ForeignError $ "Can't parse '" <> id <> "' as an CdnId (Int)"
-          Just idn -> pure $ CdnId idn
+        id' ← readImpl cdnId
         pure {cdnId: id', regions: rr}
         where
           readString :: Foreign -> F String

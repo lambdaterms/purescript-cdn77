@@ -5,10 +5,11 @@ import Control.Applicative (pure)
 import Control.Bind (bind, (>>=))
 import Control.Category ((<<<), (>>>))
 import Control.Monad.Except (ExceptT(..), except)
-import Data.Argonaut.Core (Json, caseJsonObject, toString)
+import Data.Argonaut.Core (Json, caseJsonObject, isNull, toString)
 import Data.Either (Either(..))
 import Data.Eq ((/=))
 import Data.Function (const, ($))
+import Data.Functor ((<#>))
 import Data.Maybe (Maybe(..))
 import Data.Semigroup ((<>))
 import Data.Show (show)
@@ -22,8 +23,7 @@ import Utils (coerceJsonHelperImpl, errorType)
 
 
 readJson ∷ ∀ a. ReadForeign a ⇒ Json → Either ApiCallError a
-readJson = errorType (ServerReponseError <<< show ) <<< read <<< coerceJson
-  where
+readJson = errorType (ReturnedObjectTypeError <<< show ) <<< read <<< coerceJson where
     -- | [XXX][WARNING] Assuming that both Json and Foreign represents raw Javascript object, which lies with the foundations of both libraries but may be a subject to change.
     coerceJson ∷ Json → Foreign
     coerceJson = coerceJsonHelperImpl <<< unsafeCoerce
@@ -61,6 +61,14 @@ readStandardResponse reqAff = ExceptT $ attempt reqAff >>= \respAttempt → pure
     withError err = case _ of
       Nothing → Left err
       Just a  → Right a
+
+readResponsesOptionalCustomObject ∷ ∀ a. ReadForeign a ⇒ String → a → Aff (Response (Either ResponseFormatError Json)) → ExceptT ApiCallError Aff a
+readResponsesOptionalCustomObject target def reqAff =
+  readStandardResponse reqAff <#> lookup target >>= case _ of
+    Nothing → pure def
+    Just obj → case isNull obj of
+      true → pure def
+      false → except $ readJson obj
 
 readResponsesCustomObject ∷ ∀ a. ReadForeign a ⇒ String → Aff (Response (Either ResponseFormatError Json)) → ExceptT ApiCallError Aff a
 readResponsesCustomObject target reqAff =

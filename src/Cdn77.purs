@@ -4,36 +4,30 @@ import Affjax (Response)
 import Affjax (get, post) as AffJax
 import Affjax.RequestBody (formURLEncoded) as RequestBody
 import Affjax.ResponseFormat as ResponseFormat
-import Common (readResponsesCustomObject, readStandardResponse)
+import Common (readResponsesCustomObject, readResponsesOptionalCustomObject, readStandardResponse)
 import Control.Applicative (pure)
 import Control.Apply ((*>))
 import Control.Monad.Except (ExceptT)
 import Data.Argonaut.Core (Json)
 import Data.Either (Either)
 import Data.FormURLEncoded (encode)
-import Data.Function (const, ($))
+import Data.Function (($))
 import Data.Semigroup ((<>))
 import Data.Unit (Unit, unit)
-import Debug.Trace (trace)
 import Effect.Aff (Aff)
 import Simple.JSON (class WriteForeign)
 import Types (ApiCallError, ApiRequest, ApiRequestUrl, CDNResourceDetails, CdnId, Report, ReportType, RequestId, RequestType, Storage, StorageId, Timestamp)
 import Utils (urlEncoded)
 
+
 apiUrl ∷ String
 apiUrl = "https://api.cdn77.com/v2.0"
 
-
 get ∷ ∀ p. WriteForeign { | p } ⇒ String → { | p } → Aff (Response (Either ResponseFormat.ResponseFormatError Json))
-get endpoint params = AffJax.get ResponseFormat.json $
- let u = apiUrl <> endpoint <> "?" <> encode (urlEncoded params)
- in trace u $ const u
-
+get endpoint params = AffJax.get ResponseFormat.json $ apiUrl <> endpoint <> "?" <> encode (urlEncoded params)
 
 post ∷ ∀ p. WriteForeign { | p } ⇒ String → { | p } → Aff (Response (Either ResponseFormat.ResponseFormatError Json))
-post endpoint params = AffJax.post ResponseFormat.json (apiUrl <> endpoint) (RequestBody.formURLEncoded $
-  let u = urlEncoded params
-  in trace (encode u) $ const u)
+post endpoint params = AffJax.post ResponseFormat.json (apiUrl <> endpoint) (RequestBody.formURLEncoded $ urlEncoded params)
 
 
 -------------------------------------------------------
@@ -42,7 +36,7 @@ post endpoint params = AffJax.post ResponseFormat.json (apiUrl <> endpoint) (Req
 listCdnResources
   ∷ { login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff (Array CDNResourceDetails)
-listCdnResources params = readResponsesCustomObject "cdnResources" (get "/cdn-resource/list" params)
+listCdnResources params = readResponsesOptionalCustomObject "cdnResources" [] (get "/cdn-resource/list" params)
 
 getCdnResourceDetails
   ∷ { id ∷ CdnId, login ∷ String, passwd ∷ String }

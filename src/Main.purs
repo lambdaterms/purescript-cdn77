@@ -22,7 +22,6 @@ main = launchAff_ do
   liftEffect $ log "Details of resource"
   test getCdnResourceDetails {id: cdn_id, passwd, login}
 
-
   liftEffect $ log "== Data =="
 
   liftEffect $ log "Prefetch"
@@ -33,7 +32,6 @@ main = launchAff_ do
 
   liftEffect $ log "Purge All"
   test purgeAll {login, passwd, cdn_id }
-
 
   liftEffect $ log "== Data Queue =="
 
@@ -55,7 +53,7 @@ main = launchAff_ do
 
     login = "login"
     passwd = "password"
-    cdn_id = CdnId 152266
-    request_id = RequestId 0 -- no such request
+    cdn_id = CdnId "153308"
+    request_id = RequestId "0" -- no such request
     urls = []
     requestType = Purge
