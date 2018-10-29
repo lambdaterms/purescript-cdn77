@@ -33,6 +33,7 @@ post endpoint params = AffJax.post ResponseFormat.json (apiUrl <> endpoint) (Req
 -------------------------------------------------------
 --------------------- CDNResources --------------------
 
+-- | Lists Cdn Resources. Returns error if none.
 listCdnResources
   ∷ { login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff (Array CDNResourceDetails)
@@ -64,6 +65,7 @@ purgeAll params = readStandardResponse (post "/data/purge-all" params) *> pure u
 --------------------------------------------------------
 ---------------------- DATA QUEUE ----------------------
 
+-- | Lists requests made to Cdn with cdn_id id. Returns error if none.
 listRequests
   ∷ { type ∷ RequestType, cdn_id ∷ CdnId, login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff (Array ApiRequest)
@@ -98,6 +100,8 @@ deleteStorage
   → ExceptT ApiCallError Aff Unit
 deleteStorage params = readStandardResponse (post "/storage/delete" params) *> pure unit
 
+
+-- | Lists available storages. Returns error if none.
 listStorages
   ∷ { login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff (Array Storage)
