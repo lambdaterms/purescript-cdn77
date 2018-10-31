@@ -3,7 +3,12 @@
 exports.urlEncodedImpl = function(makeTuple){
   return function(obj){
     return Object.keys(obj).map(function(k) {
-      return makeTuple(k)(obj[k].toString());
+      if(Array.isArray(obj[k])){
+        return makeTuple(k+"[]")(obj[k].toString());
+      }
+      else{
+        return makeTuple(k)(obj[k].toString());
+      }
     });
   };
 };
@@ -23,7 +28,6 @@ exports.coerceJsonHelperImpl = function(obj){
   }
   else if(obj != null && typeof(obj) === 'object'){
     var newObj = {};
-    console.log('low', obj, obj === [], obj == []);
     Object.keys(obj).map(function(k) {
       newObj[k.toLowerCase()] = exports.coerceJsonHelperImpl(obj[k]);
     });

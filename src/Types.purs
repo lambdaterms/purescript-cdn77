@@ -20,7 +20,7 @@ import Simple.JSON (class ReadForeign, class WriteForeign, readImpl, writeImpl, 
 import Utils (coerceJsonHelperImpl)
 
 -- [TODO]
-type Timestamp = String
+type Timestamp = Int
 
 data ApiCallError = RequestError String
                   | ServerReponseError String
