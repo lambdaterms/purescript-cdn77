@@ -1,26 +1,60 @@
 module Main where
 
-import Prelude
+import Types
 
-import Cdn77 (getCdnResourceDetails, getRequestDetails, listCdnResources, listRequestUrl, listRequests, prefetch, purge, purgeAll)
+import Cdn77 (createStorage, deleteStorage, getCdnResourceDetails, getRequestDetails, listCdnResources, listRequestUrl, listRequests, listStorages, prefetch, purge, purgeAll, reportDetails, storageDetails)
+import Control.Applicative ((*>))
 import Control.Monad.Except (ExceptT, runExceptT)
+import Data.Either (Either(..))
+import Data.Maybe (fromMaybe)
+import Data.Monoid ((<>))
+import Data.Show (show)
 import Debug.Trace (traceM)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
-import Types (CdnId(..), RequestId(..), RequestType(..))
+import Node.Process (lookupEnv)
+import Prelude (Unit, bind, discard, pure, void, ($), (<$>), (<<<))
 
 main :: Effect Unit
 main = launchAff_ do
 
-  liftEffect $ log "== CDN Resources =="
+  -- api credentials from environment variables
+  login <- fromMaybe "" <$> (liftEffect $ lookupEnv "CDN77_API_LOGIN")
+  passwd <- fromMaybe "" <$> (liftEffect $ lookupEnv "CDN77_API_PASSWORD")
 
-  liftEffect $ log "List of resources"
-  test listCdnResources { passwd, login}
+  traceM login
+  traceM passwd
 
-  liftEffect $ log "Details of resource"
-  test getCdnResourceDetails {id: cdn_id, passwd, login}
+
+  -- liftEffect $ log "== CDN Resources =="
+
+  -- liftEffect $ log "List of resources"
+  -- test listCdnResources { passwd, login}
+
+  -- liftEffect $ log "Details of resource"
+  -- test getCdnResourceDetails {id: cdn_id, passwd, login}
+
+
+  liftEffect $ log "== Storage =="
+
+  liftEffect $ log "Create storage"
+  stE <- retTest createStorage { passwd, login, storage_location_id: "push-30.cdn77.com", zone_name: "apiTest1"}
+
+  case stE of
+    Left x -> liftEffect $ log (show x) *> log "Failed t create storage. Storage tests disabled."
+    Right st -> do
+      liftEffect $ log $ "Created storage with id: " <> show st.id
+
+      liftEffect $ log "List of storages"
+      test listStorages { passwd, login}
+
+      liftEffect $ log "Storage details"
+      test storageDetails { passwd, login, id: st.id}
+
+      liftEffect $ log "Delete storage"
+      test deleteStorage { passwd, login, id: st.id}
 
   liftEffect $ log "== Data =="
 
@@ -33,27 +67,37 @@ main = launchAff_ do
   liftEffect $ log "Purge All"
   test purgeAll {login, passwd, cdn_id }
 
-  liftEffect $ log "== Data Queue =="
+  -- liftEffect $ log "== Data Queue =="
 
-  liftEffect $ log "List Requests"
-  test listRequests { type: requestType, cdn_id, login, passwd }
+  -- liftEffect $ log "List Requests"
+  -- test listRequests { type: requestType, cdn_id, login, passwd }
 
-  liftEffect $ log "Get Request Details"
-  test getRequestDetails { id: request_id, login, passwd }
+  -- liftEffect $ log "Get Request Details"
+  -- test getRequestDetails { id: request_id, login, passwd }
 
-  liftEffect $ log "List Request URL"
-  test listRequestUrl { request_id, cdn_id, login, passwd }
+  -- liftEffect $ log "List Request URL"
+  -- test listRequestUrl { request_id, cdn_id, login, passwd }
+
+
+  liftEffect $ log "== Report =="
+
+  liftEffect $ log "Report details"
+  test reportDetails { from: 1520950125, to:1540950125, type: Bandwidth, cdn_ids: [cdn_id], login, passwd }
+
 
   where
 
     test :: forall e a inp. (inp -> ExceptT e Aff a) -> inp -> Aff Unit
-    test command params = do
+    test cmd = void <<< retTest cmd
+
+    retTest :: forall e a inp. (inp -> ExceptT e Aff a) -> inp -> Aff (Either e a)
+    retTest command params = do
       ret <- runExceptT $ command params
       traceM ret
+      pure ret
 
-    login = "login"
-    passwd = "password"
+    storage_id = StorageId "user_e6nixmh5"
     cdn_id = CdnId "153308"
     request_id = RequestId "0" -- no such request
-    urls = []
+    urls = ["README.md"]
     requestType = Purge

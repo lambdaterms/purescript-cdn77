@@ -27,6 +27,19 @@ data ApiCallError = RequestError String
                   | ReturnedObjectTypeError String
                   | ResourceError String
 
+instance showApiCallError :: Show ApiCallError where
+  show = case _ of
+    RequestError x -> "RequestError " <> x
+    ServerReponseError x -> "ServerReponseError " <> x
+    ReturnedObjectTypeError x -> "ReturnedObjectTypeError " <> x
+    ResourceError x -> "ResourceError " <> x
+
+type ApiResponse dataR =
+  { status :: String
+  , description :: String
+  | dataR
+  }
+
 
 readImplStringOrInt :: Foreign -> F String
 readImplStringOrInt frn = do

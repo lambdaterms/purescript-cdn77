@@ -1,22 +1,39 @@
-module Cdn77 where
+module Cdn77
+ ( listCdnResources
+ , getCdnResourceDetails
+ , prefetch
+ , purge
+ , purgeAll
+ , listRequests
+ , getRequestDetails
+ , listRequestUrl
+ , createStorage
+ , storageDetails
+ , deleteStorage
+ , listStorages
+ , addStorageCdnResources
+ , reportDetails
+ ) where
 
 import Affjax (Response)
 import Affjax (get, post) as AffJax
 import Affjax.RequestBody (formURLEncoded) as RequestBody
 import Affjax.ResponseFormat as ResponseFormat
-import Common (readResponsesCustomObject, readResponsesOptionalCustomObject, readStandardResponse)
-import Control.Applicative (pure)
-import Control.Apply ((*>))
+import Common (readNonStandardResponse, readResponsesCustomObject, readResponsesOptionalCustomObject, readStandardResponse)
+import Control.Applicative (pure, void)
+import Control.Bind ((<=<))
+import Control.Category ((<<<))
 import Control.Monad.Except (ExceptT)
 import Data.Argonaut.Core (Json)
 import Data.Either (Either)
 import Data.FormURLEncoded (encode)
-import Data.Function (($))
+import Data.Function (const, ($))
 import Data.Semigroup ((<>))
-import Data.Unit (Unit, unit)
+import Data.Unit (Unit)
+import Debug.Trace (trace)
 import Effect.Aff (Aff)
 import Simple.JSON (class WriteForeign)
-import Types (ApiCallError, ApiRequest, ApiRequestUrl, CDNResourceDetails, CdnId, Report, ReportType, RequestId, RequestType, Storage, StorageId, Timestamp)
+import Types (ApiCallError, ApiRequest, ApiRequestUrl, CDNResourceDetails, CdnId, Report, ReportType, RequestId, RequestType, Storage, StorageId, Timestamp, ApiResponse)
 import Utils (urlEncoded)
 
 
@@ -24,7 +41,10 @@ apiUrl ∷ String
 apiUrl = "https://api.cdn77.com/v2.0"
 
 get ∷ ∀ p. WriteForeign { | p } ⇒ String → { | p } → Aff (Response (Either ResponseFormat.ResponseFormatError Json))
-get endpoint params = AffJax.get ResponseFormat.json $ apiUrl <> endpoint <> "?" <> encode (urlEncoded params)
+get endpoint params = AffJax.get ResponseFormat.json $
+  let
+    u = apiUrl <> endpoint <> "?" <> encode (urlEncoded params)
+  in trace u $ const u
 
 post ∷ ∀ p. WriteForeign { | p } ⇒ String → { | p } → Aff (Response (Either ResponseFormat.ResponseFormatError Json))
 post endpoint params = AffJax.post ResponseFormat.json (apiUrl <> endpoint) (RequestBody.formURLEncoded $ urlEncoded params)
@@ -37,30 +57,35 @@ post endpoint params = AffJax.post ResponseFormat.json (apiUrl <> endpoint) (Req
 listCdnResources
   ∷ { login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff (Array CDNResourceDetails)
-listCdnResources params = readResponsesOptionalCustomObject "cdnResources" [] (get "/cdn-resource/list" params)
+listCdnResources = readResponsesOptionalCustomObject "cdnResources" [] <<< get "/cdn-resource/list"
 
 getCdnResourceDetails
   ∷ { id ∷ CdnId, login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff CDNResourceDetails
-getCdnResourceDetails params = readResponsesCustomObject "cdnResource" (get "/cdn-resource/details" params)
+getCdnResourceDetails = readResponsesCustomObject "cdnResource" <<< get "/cdn-resource/details"
 
 -------------------------------------------------------
 ------------------------ DATA -------------------------
 
 prefetch
   ∷ { login ∷ String, passwd ∷ String, cdn_id ∷ CdnId, url ∷ Array String }
-  → ExceptT ApiCallError Aff {url ∷ Array String, request_id ∷ RequestId }
-prefetch params = readResponsesCustomObject "cdnResource" (post "/data/prefetch" params)
+  → ExceptT ApiCallError Aff {url :: Array String, request_id :: RequestId}
+prefetch = pure <<< unwrapResp <=< readNonStandardResponse <<< post "/data/prefetch"
 
 purge
   ∷ { url ∷ Array String, cdn_id ∷ CdnId, login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff {url ∷ Array String, request_id ∷ RequestId }
-purge params = readResponsesCustomObject "cdnResource" (post "/data/purge" params)
+purge = pure <<< unwrapResp <=< readNonStandardResponse <<< post "/data/purge"
 
 purgeAll
   ∷ { cdn_id ∷ CdnId, login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff Unit
-purgeAll params = readStandardResponse (post "/data/purge-all" params) *> pure unit
+purgeAll = void <<< readStandardResponse <<< post "/data/purge-all"
+
+unwrapResp
+  :: ApiResponse (url ∷ Array String, request_id ∷ RequestId)
+  -> {url :: Array String, request_id :: RequestId}
+unwrapResp {url, request_id} = {url, request_id}
 
 --------------------------------------------------------
 ---------------------- DATA QUEUE ----------------------
@@ -69,17 +94,17 @@ purgeAll params = readStandardResponse (post "/data/purge-all" params) *> pure u
 listRequests
   ∷ { type ∷ RequestType, cdn_id ∷ CdnId, login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff (Array ApiRequest)
-listRequests params = readResponsesOptionalCustomObject "requests" [] (get "/data-queue/list-request" params)
+listRequests = readResponsesOptionalCustomObject "requests" [] <<< get "/data-queue/list-request"
 
 getRequestDetails
   ∷ { id ∷ RequestId, login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff ApiRequest
-getRequestDetails params = readResponsesCustomObject "request" (get "/data-queue/details-request" params)
+getRequestDetails = readResponsesCustomObject "request" <<< get "/data-queue/details-request"
 
 listRequestUrl
   ∷ { request_id ∷ RequestId, cdn_id ∷ CdnId, login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff ApiRequestUrl
-listRequestUrl params = readResponsesCustomObject "urls" (get "/data-queue/list-url" params)
+listRequestUrl = readResponsesCustomObject "urls" <<< get "/data-queue/list-url"
 
 
 --------------------------------------------------------
@@ -88,29 +113,29 @@ listRequestUrl params = readResponsesCustomObject "urls" (get "/data-queue/list-
 createStorage
   ∷ { login ∷ String, passwd ∷ String, zone_name ∷ String, storage_location_id ∷ String }
   → ExceptT ApiCallError Aff Storage
-createStorage params = readResponsesCustomObject "storage" (post "/storage/create" params)
+createStorage = readResponsesCustomObject "storage" <<< post "/storage/create"
 
 storageDetails
   ∷ { login ∷ String, passwd ∷ String, id ∷ StorageId }
   → ExceptT ApiCallError Aff Storage
-storageDetails params = readResponsesCustomObject "storage" (get "/storage/details" params)
+storageDetails = readResponsesCustomObject "storage" <<< get "/storage/details"
 
 deleteStorage
   ∷ { login ∷ String, passwd ∷ String, id ∷ StorageId }
   → ExceptT ApiCallError Aff Unit
-deleteStorage params = readStandardResponse (post "/storage/delete" params) *> pure unit
+deleteStorage = void <<< readStandardResponse <<< post "/storage/delete"
 
 
 -- | Lists available storages. Returns error if none.
 listStorages
   ∷ { login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff (Array Storage)
-listStorages params = readResponsesOptionalCustomObject "storages" [] (get "/storage/list" params)
+listStorages = readResponsesOptionalCustomObject "storages" [] <<< get "/storage/list"
 
 addStorageCdnResources
   ∷ { login ∷ String, passwd ∷ String, id ∷ StorageId, cdn_ids ∷ Array CdnId }
   → ExceptT ApiCallError Aff Unit
-addStorageCdnResources params = readStandardResponse (post "/storage/add-cdn-resource" params) *> pure unit
+addStorageCdnResources = void <<< readStandardResponse <<< post "/storage/add-cdn-resource"
 
 
 --------------------------------------------------------
@@ -120,4 +145,4 @@ reportDetails
   ∷ { login ∷ String, passwd ∷ String, type ∷ ReportType
     , from ∷ Timestamp, to ∷ Timestamp, cdn_ids ∷ Array CdnId}
   → ExceptT ApiCallError Aff Report
-reportDetails params = readResponsesCustomObject "report" (get "/report/details" params)
+reportDetails = readResponsesCustomObject "report" <<< get "/report/details"

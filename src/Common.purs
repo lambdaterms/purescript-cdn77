@@ -17,7 +17,7 @@ import Effect.Aff (Aff, attempt)
 import Foreign (Foreign)
 import Foreign.Object (Object, lookup)
 import Simple.JSON (class ReadForeign, class WriteForeign, read, write)
-import Types (ApiCallError(..))
+import Types (ApiCallError(..), ApiResponse)
 import Unsafe.Coerce (unsafeCoerce)
 import Utils (coerceJsonHelperImpl, errorType)
 
@@ -61,6 +61,14 @@ readStandardResponse reqAff = ExceptT $ attempt reqAff >>= \respAttempt → pure
     withError err = case _ of
       Nothing → Left err
       Just a  → Right a
+
+-- | Reads non-standard response i.e. response that instead of containing data in custom response object,
+-- | contains it directly in its body.
+readNonStandardResponse ∷ ∀ a. ReadForeign (ApiResponse a) ⇒ Aff (Response (Either ResponseFormatError Json)) → ExceptT ApiCallError Aff (ApiResponse a)
+readNonStandardResponse reqAff = readStandardResponse reqAff >>= except <<< readJson <<< coerceJson
+  where
+    coerceJson :: Object Json → Json
+    coerceJson = unsafeCoerce
 
 readResponsesOptionalCustomObject ∷ ∀ a. ReadForeign a ⇒ String → a → Aff (Response (Either ResponseFormatError Json)) → ExceptT ApiCallError Aff a
 readResponsesOptionalCustomObject target def reqAff =
