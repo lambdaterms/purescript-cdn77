@@ -20,14 +20,14 @@ import Affjax (get, post) as AffJax
 import Affjax.RequestBody (formURLEncoded) as RequestBody
 import Affjax.ResponseFormat as ResponseFormat
 import Common (readNonStandardResponse, readResponsesCustomObject, readResponsesOptionalCustomObject, readStandardResponse)
-import Control.Applicative (pure, void)
-import Control.Bind ((<=<))
+import Control.Applicative (void)
 import Control.Category ((<<<))
 import Control.Monad.Except (ExceptT)
 import Data.Argonaut.Core (Json)
 import Data.Either (Either)
 import Data.FormURLEncoded (encode)
 import Data.Function (const, ($))
+import Data.Functor (map)
 import Data.Semigroup ((<>))
 import Data.Unit (Unit)
 import Debug.Trace (trace)
@@ -70,12 +70,12 @@ getCdnResourceDetails = readResponsesCustomObject "cdnResource" <<< get "/cdn-re
 prefetch
   ∷ { login ∷ String, passwd ∷ String, cdn_id ∷ CdnId, url ∷ Array String }
   → ExceptT ApiCallError Aff {url :: Array String, request_id :: RequestId}
-prefetch = pure <<< unwrapResp <=< readNonStandardResponse <<< post "/data/prefetch"
+prefetch = map unwrapResp <<< readNonStandardResponse <<< post "/data/prefetch"
 
 purge
   ∷ { url ∷ Array String, cdn_id ∷ CdnId, login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff {url ∷ Array String, request_id ∷ RequestId }
-purge = pure <<< unwrapResp <=< readNonStandardResponse <<< post "/data/purge"
+purge = map unwrapResp <<< readNonStandardResponse <<< post "/data/purge"
 
 purgeAll
   ∷ { cdn_id ∷ CdnId, login ∷ String, passwd ∷ String }
