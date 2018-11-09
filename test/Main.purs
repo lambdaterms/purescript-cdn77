@@ -1,159 +1,103 @@
 module Test.Main where
 
-import Prelude
+import Types
 
-import Data.Argonaut (class DecodeJson, class EncodeJson, decodeJson, encodeJson, getField, jsonEmptyObject, toObject, (.?), (:=), (~>))
-import Data.Either (Either(..), either)
-import Data.Maybe (Maybe(..))
+import Cdn77 (createStorage, deleteStorage, getCdnResourceDetails, getRequestDetails, listCdnResources, listRequestUrl, listRequests, listStorages, prefetch, purge, purgeAll, reportDetails, storageDetails)
+import Control.Applicative ((*>))
+import Control.Monad.Except (ExceptT, runExceptT)
+import Data.Either (Either(..))
+import Data.Maybe (fromMaybe)
+import Data.Monoid ((<>))
+import Data.Show (show)
+import Debug.Trace (traceM)
 import Effect (Effect)
-import Foreign (Foreign)
-import Simple.JSON (class ReadForeign, class WriteForeign, E, read, write)
-import Test.QuickCheck (class Arbitrary, Result(..), (<?>), (===))
-import Test.Unit (suite, test)
-import Test.Unit.Assert as Assert
-import Test.Unit.Main (runTest)
-import Test.Unit.QuickCheck (quickCheck)
-import Unsafe.Coerce (unsafeCoerce)
-
-
-data Proxy a = Proxy
+import Effect.Aff (Aff, launchAff_)
+import Effect.Class (liftEffect)
+import Effect.Console (log)
+import Node.Process (lookupEnv)
+import Prelude (Unit, bind, discard, pure, void, ($), (<$>), (<<<))
 
 main :: Effect Unit
-main = runTest $ do
-  suite "Argonaut's Json vs Simple.JSON's Foreign equivalence tests" do
+main = launchAff_ do
 
-    test "a -> Json -> Foreign -> a -------- (Int)"
-      (quickCheck (json2foreignSimple (Proxy :: Proxy Int)))
+  -- api credentials from environment variables
+  login <- fromMaybe "" <$> (liftEffect $ lookupEnv "CDN77_API_LOGIN")
+  passwd <- fromMaybe "" <$> (liftEffect $ lookupEnv "CDN77_API_PASSWORD")
 
-    test "a -> Json -> Foreign -> a -------- (String)"
-      (quickCheck (json2foreignSimple (Proxy :: Proxy String)))
+  traceM login
+  traceM passwd
 
-    test "a -> Json -> Foreign -> a -------- (Number)"
-      (quickCheck (json2foreignSimple (Proxy :: Proxy Number)))
 
-    test "a -> Json -> Foreign -> a -------- (Array Number)"
-      (quickCheck (json2foreignSimple (Proxy :: Proxy (Array Number))))
+  -- liftEffect $ log "== CDN Resources =="
 
-    test "a -> Foreign -> Json -> a -------- (Int)"
-      (quickCheck (foreign2jsonSimple (Proxy :: Proxy Int)))
+  -- liftEffect $ log "List of resources"
+  -- test listCdnResources { passwd, login}
 
-    test "a -> Foreign -> Json -> a -------- (String)"
-      (quickCheck (foreign2jsonSimple (Proxy :: Proxy String)))
+  -- liftEffect $ log "Details of resource"
+  -- test getCdnResourceDetails {id: cdn_id, passwd, login}
 
-    test "a -> Foreign -> Json -> a -------- (Number)"
-      (quickCheck (foreign2jsonSimple (Proxy :: Proxy Number)))
 
-    test "a -> Foreign -> Json -> a -------- (Array Number)"
-      (quickCheck (foreign2jsonSimple (Proxy :: Proxy (Array Number))))
+  liftEffect $ log "== Storage =="
 
-    test "x@{ a :: Int, b :: Number, c :: String } -> Foreign -> Json -> x"
-      (quickCheck foreign2jsonObject)
+  liftEffect $ log "Create storage"
+  stE <- retTest createStorage { passwd, login, storage_location_id: "push-30.cdn77.com", zone_name: "apiTest1"}
 
-    test "x@{ a :: Int, b :: Number, c :: String, d :: Array String } -> Json -> Foreign -> x"
-      (quickCheck foreign2jsonObject)
+  case stE of
+    Left x -> liftEffect $ log (show x) *> log "Failed t create storage. Storage tests disabled."
+    Right st -> do
+      liftEffect $ log $ "Created storage with id: " <> show st.id
 
-    test "Array a -> Json -> Foreign ->  Array a -------- "
-      (quickCheck (json2foreignArray (Proxy :: Proxy TestObj)))
+      liftEffect $ log "List of storages"
+      test listStorages { passwd, login}
+
+      liftEffect $ log "Storage details"
+      test storageDetails { passwd, login, id: st.id}
+
+      liftEffect $ log "Delete storage"
+      test deleteStorage { passwd, login, id: st.id}
+
+  liftEffect $ log "== Data =="
+
+  liftEffect $ log "Prefetch"
+  test prefetch {login, passwd, cdn_id, url: urls}
+
+  liftEffect $ log "Purge"
+  test purge {login, passwd, cdn_id, url: urls}
+
+  liftEffect $ log "Purge All"
+  test purgeAll {login, passwd, cdn_id }
+
+  -- liftEffect $ log "== Data Queue =="
+
+  -- liftEffect $ log "List Requests"
+  -- test listRequests { type: requestType, cdn_id, login, passwd }
+
+  -- liftEffect $ log "Get Request Details"
+  -- test getRequestDetails { id: request_id, login, passwd }
+
+  -- liftEffect $ log "List Request URL"
+  -- test listRequestUrl { request_id, cdn_id, login, passwd }
+
+
+  liftEffect $ log "== Report =="
+
+  liftEffect $ log "Report details"
+  test reportDetails { from: 1520950125, to:1540950125, type: Bandwidth, cdn_ids: [cdn_id], login, passwd }
+
+
   where
 
-    testAssert msg t = test msg (t >>= Assert.assert msg)
+    test :: forall e a inp. (inp -> ExceptT e Aff a) -> inp -> Aff Unit
+    test cmd = void <<< retTest cmd
 
-    json2foreignObject :: TestObjR -> Result
-    json2foreignObject x0 =
-      let
-        json1 = encodeJson (TestObj x0)
-        x1E = read (unsafeCoerce json1)
-      in
-        case x1E of
-          Left err -> Failed $ "Error: " <> show err <> " can't read from encoded json"
-          Right x1 -> x1 === x0
+    retTest :: forall e a inp. (inp -> ExceptT e Aff a) -> inp -> Aff (Either e a)
+    retTest command params = do
+      ret <- runExceptT $ command params
+      traceM ret
+      pure ret
 
-
-    foreign2jsonObject :: {a :: Int, b :: Number, c :: String} -> Result
-    foreign2jsonObject x0@{a:a0, b:b0, c:c0} =
-      let
-        frn1 = write x0
-        json1 = unsafeCoerce frn1
-      in
-       either Failed identity do
-         obj <- withError (show x0 <> " is not an Object according to Argonaut") $ toObject json1
-         a <- getField obj "a"
-         b <- getField obj "b"
-         c <- getField obj "c"
-         pure $ (a == a0 && b == b0 && c == c0) <?>
-           ("Did not hold: " <> show a <> "==" <> show a0 <> " && "
-            <> show b <> "==" <> show b0 <> " && "
-            <> show c <> "==" <> show c0)
-
-      where
-        withError str = case _ of
-          Nothing -> Left str
-          Just x  -> Right x
-
-
-    json2foreignArray :: forall a. Arbitrary a => Show a => Eq a => EncodeJson a => DecodeJson a => ReadForeign a => WriteForeign a => Proxy a -> Array a -> Result
-    json2foreignArray p x0 =
-      let
-        json1 = encodeJson  x0
-        x1E = readArray (unsafeCoerce json1)
-      in
-        case x1E of
-          Left err -> Failed $ "Error: " <> show err <> " can't read from encoded json"
-          Right x1 -> x1 === x0
-
-      where
-        readArray :: ReadForeign a => Foreign -> E (Array a)
-        readArray = read
-
-
-    json2foreignSimple :: forall a. Arbitrary a => Show a => Eq a => EncodeJson a => DecodeJson a => ReadForeign a => WriteForeign a => Proxy a -> a -> Result
-    json2foreignSimple p x0 =
-      let
-        json1 = encodeJson x0
-        x1E = read (unsafeCoerce json1)
-      in
-        case x1E of
-          Left err -> Failed $ "Error: " <> show err <> " can't read from encoded json"
-          Right x1 -> x1 === x0
-
-    foreign2jsonSimple :: forall a. Arbitrary a => Show a => Eq a => EncodeJson a => DecodeJson a => ReadForeign a => WriteForeign a => Proxy a -> a -> Result
-    foreign2jsonSimple p x0 =
-      let
-        frn1 = write x0
-        x1E = decodeJson (unsafeCoerce frn1)
-      in
-        case x1E of
-          Left err -> Failed $ "Error: " <> show err <> " can't read from encoded json"
-          Right x1 -> x1 === x0
-
-type TestObjR =
-  { a :: Int
-  , b :: String
-  , c :: Number
-  , d :: Array Number
-  }
-newtype TestObj = TestObj TestObjR
-
-
-derive newtype instance readForeignTestObj :: ReadForeign TestObj
-derive newtype instance writeForeignTestObj :: WriteForeign TestObj
-derive newtype instance arbitrartyForeignTestObj :: Arbitrary TestObj
-derive newtype instance showForeignTestObj :: Show TestObj
-derive newtype instance eqForeignTestObj :: Eq TestObj
-
-instance decodeJsonTestObj :: DecodeJson TestObj where
-  decodeJson json = do
-    obj <- decodeJson json
-    a <- obj .? "a"
-    b <- obj .? "b"
-    c <- obj .? "c"
-    d <- obj .? "d"
-    pure $ TestObj { a, b, c, d }
-
-instance encodeJsonTestObj :: EncodeJson TestObj where
-  encodeJson (TestObj obj)
-     = "a" := obj.a
-    ~> "b" := obj.b
-    ~> "c" := obj.c
-    ~> "d" := obj.d
-    ~> jsonEmptyObject
+    storage_id = StorageId "user_e6nixmh5"
+    cdn_id = CdnId "153308"
+    request_id = RequestId "0" -- no such request
+    urls = ["README.md"]
+    requestType = Purge
