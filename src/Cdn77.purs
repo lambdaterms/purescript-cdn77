@@ -33,7 +33,7 @@ import Data.Unit (Unit)
 import Debug.Trace (trace)
 import Effect.Aff (Aff)
 import Simple.JSON (class WriteForeign)
-import Types (ApiCallError, ApiRequest, ApiRequestUrl, CDNResourceDetails, CdnId, Report, ReportType, RequestId, RequestType, Storage, StorageId, Timestamp, ApiResponse)
+import Types (ApiCallError, ApiRequest, ApiRequestUrl, ApiResponse, CDNResourceDetails, CdnId, Report, ReportType, RequestId, RequestType, Storage, StorageId, Timestamp, splitProtocols)
 import Utils (urlEncoded)
 
 
@@ -53,7 +53,6 @@ post endpoint params = AffJax.post ResponseFormat.json (apiUrl <> endpoint) (Req
 -------------------------------------------------------
 --------------------- CDNResources --------------------
 
--- | Lists Cdn Resources. Returns error if none.
 listCdnResources
   ∷ { login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff (Array CDNResourceDetails)
@@ -113,24 +112,22 @@ listRequestUrl = readResponsesCustomObject "urls" <<< get "/data-queue/list-url"
 createStorage
   ∷ { login ∷ String, passwd ∷ String, zone_name ∷ String, storage_location_id ∷ String }
   → ExceptT ApiCallError Aff Storage
-createStorage = readResponsesCustomObject "storage" <<< post "/storage/create"
+createStorage = map splitProtocols <<< readResponsesCustomObject "storage" <<< post "/storage/create"
 
 storageDetails
   ∷ { login ∷ String, passwd ∷ String, id ∷ StorageId }
   → ExceptT ApiCallError Aff Storage
-storageDetails = readResponsesCustomObject "storage" <<< get "/storage/details"
+storageDetails = map splitProtocols <<< readResponsesCustomObject "storage" <<< get "/storage/details"
 
 deleteStorage
   ∷ { login ∷ String, passwd ∷ String, id ∷ StorageId }
   → ExceptT ApiCallError Aff Unit
 deleteStorage = void <<< readStandardResponse <<< post "/storage/delete"
 
-
--- | Lists available storages. Returns error if none.
 listStorages
   ∷ { login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff (Array Storage)
-listStorages = readResponsesOptionalCustomObject "storages" [] <<< get "/storage/list"
+listStorages = map (map splitProtocols) <<< readResponsesOptionalCustomObject "storages" [] <<< get "/storage/list"
 
 addStorageCdnResources
   ∷ { login ∷ String, passwd ∷ String, id ∷ StorageId, cdn_ids ∷ Array CdnId }

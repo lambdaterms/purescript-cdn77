@@ -7,13 +7,14 @@ import Control.Monad.Except (except, runExceptT)
 import Data.Either (Either(..))
 import Data.Eq (class Eq)
 import Data.Function (($))
-import Data.Functor (map)
+import Data.Functor (map, (<$>))
 import Data.List.NonEmpty (singleton)
 import Data.Maybe (Maybe)
 import Data.Newtype (unwrap)
 import Data.Nullable (Nullable)
 import Data.Semigroup ((<>))
 import Data.Show (class Show, show)
+import Data.String (Pattern(..), split, trim)
 import Data.Traversable (sequence)
 import Foreign (F, Foreign, ForeignError(..))
 import Simple.JSON (class ReadForeign, class WriteForeign, readImpl, writeImpl, writeJSON)
@@ -228,7 +229,7 @@ type ApiRequestUrl =
 --------------------- STORAGE ---------------------
 
 type StorageCredentials =
-  { protocol ∷ String -- TODO parsing. comma-separated list of protocols "FTP, SFTP"
+  { protocol ∷ Array String
   , host ∷ String
   , user ∷ String
   , pass ∷ String }
@@ -242,6 +243,14 @@ type Storage =
  , credentials ∷ StorageCredentials -- Object with params: protocol, host, user, pass.
  }
 
+
+splitProtocols
+  ∷ ∀ r r1
+  . { credentials :: { protocol :: String | r} | r1}
+  → { credentials :: { protocol :: Array String | r} | r1}
+splitProtocols s =
+  let prot = trim <$> split (Pattern ",") s.credentials.protocol
+  in s{credentials{protocol=prot}}
 
 --------------------- REPORT ---------------------
 
