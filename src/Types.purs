@@ -252,6 +252,12 @@ splitProtocols s =
   let prot = trim <$> split (Pattern ",") s.credentials.protocol
   in s{credentials{protocol=prot}}
 
+---------------- STORAGE LOCATION ---------------------
+
+type StorageLocation =
+  { id ∷ StorageLocationId
+  , name ∷ String }
+
 --------------------- REPORT ---------------------
 
 data ReportType

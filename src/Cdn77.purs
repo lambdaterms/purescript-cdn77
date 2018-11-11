@@ -12,6 +12,7 @@ module Cdn77
  , deleteStorage
  , listStorages
  , addStorageCdnResources
+ , listStorageLocations
  , reportDetails
  ) where
 
@@ -33,7 +34,7 @@ import Data.Unit (Unit)
 import Debug.Trace (trace)
 import Effect.Aff (Aff)
 import Simple.JSON (class WriteForeign)
-import Types (ApiCallError, ApiRequest, ApiRequestUrl, ApiResponse, CDNResourceDetails, CdnId, Report, ReportType, RequestId, RequestType, Storage, StorageId, Timestamp, splitProtocols)
+import Types (ApiCallError, ApiRequest, ApiRequestUrl, ApiResponse, CDNResourceDetails, CdnId, Report, ReportType, RequestId, RequestType, Storage, StorageId, StorageLocation, StorageLocationId, Timestamp, splitProtocols)
 import Utils (urlEncoded)
 
 
@@ -110,7 +111,7 @@ listRequestUrl = readResponsesCustomObject "urls" <<< get "/data-queue/list-url"
 ------------------------ STORAGE -----------------------
 
 createStorage
-  ∷ { login ∷ String, passwd ∷ String, zone_name ∷ String, storage_location_id ∷ String }
+  ∷ { login ∷ String, passwd ∷ String, zone_name ∷ String, storage_location_id ∷ StorageLocationId }
   → ExceptT ApiCallError Aff Storage
 createStorage = map splitProtocols <<< readResponsesCustomObject "storage" <<< post "/storage/create"
 
@@ -133,6 +134,15 @@ addStorageCdnResources
   ∷ { login ∷ String, passwd ∷ String, id ∷ StorageId, cdn_ids ∷ Array CdnId }
   → ExceptT ApiCallError Aff Unit
 addStorageCdnResources = void <<< readStandardResponse <<< post "/storage/add-cdn-resource"
+
+
+---------------------------------------------------------
+------------------ STORAGE LOCATION ---------------------
+
+listStorageLocations
+  ∷ { login ∷ String, passwd ∷ String }
+  → ExceptT ApiCallError Aff (Array StorageLocation)
+listStorageLocations = readResponsesOptionalCustomObject "storageLocations" [] <<< get "/storage-location/list"
 
 
 --------------------------------------------------------
