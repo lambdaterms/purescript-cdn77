@@ -2,7 +2,7 @@ module Common where
 
 import Affjax (Response, ResponseFormatError)
 import Control.Applicative (pure)
-import Control.Bind (bind, (>>=))
+import Control.Bind (bind, (>>=), discard)
 import Control.Category ((<<<), (>>>))
 import Control.Monad.Except (ExceptT(..), except)
 import Data.Argonaut.Core (Json, caseJsonObject, isNull, stringify)
@@ -13,6 +13,7 @@ import Data.Functor ((<#>), (<$>))
 import Data.Maybe (Maybe(..))
 import Data.Semigroup ((<>))
 import Data.Show (show)
+import Debug.Trace (traceM)
 import Effect.Aff (Aff, attempt)
 import Foreign (Foreign)
 import Foreign.Object (Object, lookup)
@@ -50,6 +51,7 @@ readStandardResponse reqAff = ExceptT $ attempt reqAff >>= \respAttempt → pure
             desc ← withError
               (ResourceError $ "Response status was" <> status)
               (stringify <$> lookup "description" obj)
+            traceM obj
             let errorDetails = case stringify <$> lookup "errors" obj of
                   Nothing -> ""
                   Just errs -> " Errors: " <> errs
