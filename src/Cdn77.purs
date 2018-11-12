@@ -49,7 +49,12 @@ get endpoint params = AffJax.get ResponseFormat.json $
   in trace u $ const u
 
 post ∷ ∀ p. WriteForeign { | p } ⇒ String → { | p } → Aff (Response (Either ResponseFormat.ResponseFormatError Json))
-post endpoint params = AffJax.post ResponseFormat.json (apiUrl <> endpoint) (RequestBody.formURLEncoded $ urlEncoded params)
+post endpoint params = 
+  trace uri $ const $ trace body $ const $ AffJax.post ResponseFormat.json uri body
+  where
+    uri = (apiUrl <> endpoint)
+    body = (RequestBody.formURLEncoded $ urlEncoded params)
+
 
 
 -------------------------------------------------------
