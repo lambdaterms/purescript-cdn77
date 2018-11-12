@@ -50,7 +50,10 @@ readStandardResponse reqAff = ExceptT $ attempt reqAff >>= \respAttempt → pure
             desc ← withError
               (ResourceError $ "Response status was" <> status)
               (lookup "description" obj >>= toString)
-            Left $ ResourceError desc
+            let errorDetails = case lookup "errors" obj >>= toString of
+                  Nothing -> ""
+                  Just errs -> " Errors: " <> errs
+            Left $ ResourceError (desc <> errorDetails)
           else pure obj)
     body
   where
