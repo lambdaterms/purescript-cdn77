@@ -61,14 +61,14 @@ post endpoint params =
 --------------------- CDNResources --------------------
 
 createCdnResource
-  ∷ { login ∷ String, passwd ∷ String, label ∷ String, type ∷ ResourceType }
+  ∷ { login ∷ String, passwd ∷ String, storage_id ∷ StorageId, label ∷ String, type ∷ ResourceType }
   → ExceptT ApiCallError Aff CDNResourceDetails
 createCdnResource = readResponsesCustomObject "cdnResource" <<< post "/cdn-resource/create"
 
 listCdnResources
   ∷ { login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff (Array CDNResourceDetails)
-listCdnResources = readResponsesOptionalCustomObject "cdnResources" [] <<< get "/cdn-resource/list"
+listCdnResources = readResponsesCustomObject "cdnResources"  <<< get "/cdn-resource/list"
 
 getCdnResourceDetails
   ∷ { id ∷ CdnId, login ∷ String, passwd ∷ String }
