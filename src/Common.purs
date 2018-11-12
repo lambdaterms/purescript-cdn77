@@ -5,11 +5,11 @@ import Control.Applicative (pure)
 import Control.Bind (bind, (>>=))
 import Control.Category ((<<<), (>>>))
 import Control.Monad.Except (ExceptT(..), except)
-import Data.Argonaut.Core (Json, caseJsonObject, isNull, toString)
+import Data.Argonaut.Core (Json, caseJsonObject, isNull, stringify)
 import Data.Either (Either(..))
 import Data.Eq ((/=))
 import Data.Function (const, ($))
-import Data.Functor ((<#>))
+import Data.Functor ((<#>), (<$>))
 import Data.Maybe (Maybe(..))
 import Data.Semigroup ((<>))
 import Data.Show (show)
@@ -44,13 +44,13 @@ readStandardResponse reqAff = ExceptT $ attempt reqAff >>= \respAttempt → pure
   caseJsonObject
     (Left $ ServerReponseError "Can't parse server's response")
     (\obj → do
-        status ← withError readStatusError (lookup "status" obj >>= toString)
+        status ← withError readStatusError (stringify <$> lookup "status" obj)
         if status /= "ok"
           then do
             desc ← withError
               (ResourceError $ "Response status was" <> status)
-              (lookup "description" obj >>= toString)
-            let errorDetails = case lookup "errors" obj >>= toString of
+              (stringify <$> lookup "description" obj)
+            let errorDetails = case stringify <$> lookup "errors" obj of
                   Nothing -> ""
                   Just errs -> " Errors: " <> errs
             Left $ ResourceError (desc <> errorDetails)
