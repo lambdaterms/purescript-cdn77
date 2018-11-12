@@ -1,5 +1,6 @@
 module Cdn77
- ( listCdnResources
+ ( createCdnResource
+ , listCdnResources
  , getCdnResourceDetails
  , prefetch
  , purge
@@ -34,7 +35,7 @@ import Data.Unit (Unit)
 import Debug.Trace (trace)
 import Effect.Aff (Aff)
 import Simple.JSON (class WriteForeign)
-import Types (ApiCallError, ApiRequest, ApiRequestUrl, ApiResponse, CDNResourceDetails, CdnId, Report, ReportType, RequestId, RequestType, Storage, StorageId, StorageLocation, StorageLocationId, Timestamp, splitProtocols)
+import Types (ApiCallError, ApiRequest, ApiRequestUrl, ApiResponse, CDNResourceDetails, CdnId, Report, ReportType, RequestId, RequestType, ResourceType, Storage, StorageId, StorageLocation, StorageLocationId, Timestamp, splitProtocols)
 import Utils (urlEncoded)
 
 
@@ -53,6 +54,11 @@ post endpoint params = AffJax.post ResponseFormat.json (apiUrl <> endpoint) (Req
 
 -------------------------------------------------------
 --------------------- CDNResources --------------------
+
+createCdnResource
+  ∷ { login ∷ String, passwd ∷ String, label ∷ String, type ∷ ResourceType }
+  → ExceptT ApiCallError Aff CDNResourceDetails
+createCdnResource = readResponsesCustomObject "cdnResource" <<< post "/cdn-resource/create"
 
 listCdnResources
   ∷ { login ∷ String, passwd ∷ String }

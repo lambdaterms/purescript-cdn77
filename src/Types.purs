@@ -164,6 +164,22 @@ instance readForeignOriginScheme ∷ ReadForeign OriginScheme where
     x   → except $ Left (singleton $ ForeignError $ "Couldn't match request type value. Should be 'http' or 'https'. Was: '" <> x <> "'")
 
 
+data ResourceType = ResourceTypeStandard | ResourceTypeVideo
+derive instance eqResourceType ∷ Eq ResourceType
+
+instance writeForeignResourceType ∷ WriteForeign ResourceType where
+  writeImpl = case _ of
+    ResourceTypeStandard → writeImpl "standard"
+    ResourceTypeVideo → writeImpl "video"
+
+instance readForeignResourceType ∷ ReadForeign ResourceType where
+  readImpl frn = readImpl frn >>= case _ of
+    "standard" → pure ResourceTypeStandard
+    "video" → pure ResourceTypeVideo
+    x   → except $ Left (singleton $ ForeignError $ "Couldn't match resource type value. Should be 'standard' or 'video'. Was: '" <> x <> "'")
+
+
+
 type CDNResourceBase =
   ( id ∷ CdnId  -- Your CDN Id. See how to retrieve a list of your cdns including their ids.
   , label ∷ String -- Your own label of a CDN Resource.
@@ -173,7 +189,7 @@ type CDNResourceBase =
   , url_signing_on ∷ Switch -- Allow generating of secured links with expiration time. Content is not available without valid token. Valid values: '0' | '1'
   , url_signing_key ∷ Nullable String -- Key (hash) for signing URLs.
   , instant_ssl ∷ Switch -- Set to 1 if you want to have a SSL certificate for every CNAME for free.
-  , type ∷ Maybe (Nullable String) -- Valid values: 'standard' | 'video'
+  , type ∷ Maybe (Nullable ResourceType) -- Valid values: 'standard' | 'video'
   , storage_id ∷ Nullable StorageId -- Storage Id. See available Storages and their Id in the list of storages. Set to 0 if you want to disable CDN Storage. Ignore query string (qs_status) is set to 1 when you enable CDN Storage as Origin.
   , qs_status ∷ Switch -- By default the entire URL is treated as a separate cacheable item. If you want to override this, set qs_status to '1', otherwise to '0'. If you have CDN Storage set as Origin, qs_status is automatically set to 1. Valid values: '0' | '1'
   , setcookie_status ∷ Switch -- To cache Set-Cookies responses, set this to '1' (disabled by default). Valid values: '0' | '1'
