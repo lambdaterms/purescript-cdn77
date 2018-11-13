@@ -20,6 +20,24 @@ import Foreign (F, Foreign, ForeignError(..))
 import Simple.JSON (class ReadForeign, class WriteForeign, readImpl, writeImpl, writeJSON)
 import Utils (coerceJsonHelperImpl)
 
+
+type ApiResponse a =
+  { description ∷ String
+  , result ∷ a }
+
+type NonDefaultApiResponse dataR =
+  { status :: String
+  , description :: String
+  | dataR
+  }
+
+type ApiResp dataR =
+  { status :: String
+  , description :: String
+  | dataR
+  }
+
+
 -- [TODO]
 type Timestamp = Int
 
@@ -34,13 +52,6 @@ instance showApiCallError :: Show ApiCallError where
     ServerReponseError x -> "ServerReponseError " <> x
     ReturnedObjectTypeError x -> "ReturnedObjectTypeError " <> x
     ResourceError x -> "ResourceError " <> x
-
-type ApiResponse dataR =
-  { status :: String
-  , description :: String
-  | dataR
-  }
-
 
 readImplStringOrInt :: Foreign -> F String
 readImplStringOrInt frn = do

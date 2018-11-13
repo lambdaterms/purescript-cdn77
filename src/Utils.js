@@ -14,22 +14,26 @@ exports.urlEncodedImpl = function(makeTuple){
 };
 
 
-exports.coerceJsonHelperImpl = function(obj){
-
+exports.coerceJsonHelperImpl = function(obj, lowcase){
   if(obj == null){
     return obj;
   }
   else if(Array.isArray(obj)){
     var newObj = [];
     for(var i=0;i<obj.length;i++){
-      newObj.push(exports.coerceJsonHelperImpl(obj[i]));
+      newObj.push(exports.coerceJsonHelperImpl(obj[i], true));
     }
     return newObj;
   }
   else if(obj != null && typeof(obj) === 'object'){
     var newObj = {};
     Object.keys(obj).map(function(k) {
-      newObj[k.toLowerCase()] = exports.coerceJsonHelperImpl(obj[k]);
+      if(lowcase){
+        newObj[k.toLowerCase()] = exports.coerceJsonHelperImpl(obj[k], true);
+      }
+      else{
+        newObj[k] = exports.coerceJsonHelperImpl(obj[k], true);
+      }
     });
     return newObj;
   }

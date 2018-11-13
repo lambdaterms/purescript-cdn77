@@ -2,20 +2,24 @@ module Test.Main where
 
 import Types
 
-import Cdn77 (createStorage, deleteStorage, getCdnResourceDetails, getRequestDetails, listCdnResources, listRequestUrl, listRequests, listStorages, prefetch, purge, purgeAll, reportDetails, storageDetails)
+import Cdn77 (createStorage, deleteStorage, getCdnResourceDetails, listCdnResources, listStorages, storageDetails)
 import Control.Applicative ((*>))
-import Control.Monad.Except (ExceptT, runExceptT)
+import Control.Monad.Except (ExceptT, except, runExceptT)
+import Data.Argonaut (Json, jsonParser, stringify)
 import Data.Either (Either(..))
+import Data.Function (const)
 import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import Data.Show (show)
-import Debug.Trace (traceM)
+import Debug.Trace (trace, traceM)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Node.Process (lookupEnv)
 import Prelude (Unit, bind, discard, pure, void, ($), (<$>), (<<<))
+import Simple.JSON (class ReadForeign, writeImpl)
+import Unsafe.Coerce (unsafeCoerce)
 
 main :: Effect Unit
 main = launchAff_ do
@@ -27,45 +31,44 @@ main = launchAff_ do
   traceM login
   traceM passwd
 
+  liftEffect $ log "== CDN Resources =="
+  liftEffect $ log "List of resources"
 
-  -- liftEffect $ log "== CDN Resources =="
+  test listCdnResources { passwd, login}
 
-  -- liftEffect $ log "List of resources"
-  -- test listCdnResources { passwd, login}
-
-  -- liftEffect $ log "Details of resource"
-  -- test getCdnResourceDetails {id: cdn_id, passwd, login}
+  liftEffect $ log "Details of resource"
+  test getCdnResourceDetails {id: cdn_id, passwd, login}
 
 
   liftEffect $ log "== Storage =="
 
   liftEffect $ log "Create storage"
-  stE <- retTest createStorage { passwd, login, storage_location_id: "push-30.cdn77.com", zone_name: "apiTest1"}
+  stE <- retTest createStorage { passwd, login, storage_location_id: StorageLocationId "push-30.cdn77.com", zone_name: "apiTest101"}
 
   case stE of
     Left x -> liftEffect $ log (show x) *> log "Failed t create storage. Storage tests disabled."
     Right st -> do
-      liftEffect $ log $ "Created storage with id: " <> show st.id
+      liftEffect $ log $ "Created storage with id: " <> show st.storage.id
 
       liftEffect $ log "List of storages"
       test listStorages { passwd, login}
 
       liftEffect $ log "Storage details"
-      test storageDetails { passwd, login, id: st.id}
+      test storageDetails { passwd, login, id: st.storage.id}
 
       liftEffect $ log "Delete storage"
-      test deleteStorage { passwd, login, id: st.id}
+      test deleteStorage { passwd, login, id: st.storage.id}
 
-  liftEffect $ log "== Data =="
+  -- liftEffect $ log "== Data =="
 
-  liftEffect $ log "Prefetch"
-  test prefetch {login, passwd, cdn_id, url: urls}
+  -- liftEffect $ log "Prefetch"
+  -- test prefetch {login, passwd, cdn_id, url: urls}
 
-  liftEffect $ log "Purge"
-  test purge {login, passwd, cdn_id, url: urls}
+  -- liftEffect $ log "Purge"
+  -- test purge {login, passwd, cdn_id, url: urls}
 
-  liftEffect $ log "Purge All"
-  test purgeAll {login, passwd, cdn_id }
+  -- liftEffect $ log "Purge All"
+  -- test purgeAll {login, passwd, cdn_id }
 
   -- liftEffect $ log "== Data Queue =="
 
@@ -79,10 +82,10 @@ main = launchAff_ do
   -- test listRequestUrl { request_id, cdn_id, login, passwd }
 
 
-  liftEffect $ log "== Report =="
+  -- liftEffect $ log "== Report =="
 
-  liftEffect $ log "Report details"
-  test reportDetails { from: 1520950125, to:1540950125, type: Bandwidth, cdn_ids: [cdn_id], login, passwd }
+  -- liftEffect $ log "Report details"
+  -- test reportDetails { from: 1520950125, to:1540950125, type: Bandwidth, cdn_ids: [cdn_id], login, passwd }
 
 
   where
