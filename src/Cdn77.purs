@@ -20,18 +20,53 @@ module Cdn77
 import Control.Category ((<<<))
 import Control.Monad.Except (ExceptT)
 import Data.Functor (map)
+import Default (class NothingFields, Justify(..), Nothingify, buildDefault)
 import Effect.Aff (Aff)
-import Request (get, post)
+import Heterogeneous.Mapping (class HMap, hmap)
+import Prim.Row (class Nub, class Union)
+import Prim.RowList (class RowToList)
+import Record (merge)
+import Request (get, post, post2)
 import Response (readCdn77Response)
+import Simple.JSON (class WriteForeignFields)
+import Type.Row (RProxy(..))
 import Types (ApiCallError, ApiRequest, ApiRequestUrl, ApiResp, CDNResourceDetails, CdnId, Report, ReportType, RequestId, RequestType, ResourceType, Storage, StorageId, StorageLocation, StorageLocationId, Timestamp, splitProtocols)
 
 -------------------------------------------------------
 --------------------- CDNResources --------------------
 
+type OptionalCdnResConfig =
+  ( origin_port :: Int -- You can specify port through which we will access your origin.
+  , storage_id :: Int --Storage Id. See available Storages and their Id in the list of storages. Set to 0 if you want to disable CDN Storage. Ignore query string (qs_status) is set to 1 when you enable CDN Storage as Origin.
+  )
+
+
 createCdnResource
+  ∷ ∀ provided providedJustified missing  allNothingified ret retNubbed nrl rl x
+  -- | Scaffolding for automatic filling of not-provided optional arguments
+  . HMap Justify { | provided } { | providedJustified }
+  ⇒ HMap Nothingify { | OptionalCdnResConfig } { | allNothingified }
+  ⇒ Union providedJustified allNothingified ret
+  ⇒ RowToList allNothingified nrl
+  ⇒ NothingFields nrl () allNothingified
+  ⇒ Nub ret retNubbed
+  ⇒ RowToList retNubbed rl
+  ⇒ WriteForeignFields rl retNubbed () x
+-- | Focus on this type when using the function
+  ⇒ Union provided missing OptionalCdnResConfig
+  ⇒ { | provided}
+  → { login ∷ String, passwd ∷ String, storage_id ∷ StorageId, label ∷ String, type ∷ ResourceType }
+  → ExceptT ApiCallError Aff (ApiResp (cdnResource ∷ CDNResourceDetails))
+createCdnResource opts =
+  let
+    allOpts = merge (hmap Justify opts) (buildDefault (RProxy :: RProxy OptionalCdnResConfig))
+  in
+    readCdn77Response <<< post2 "/cdn-resource/create" allOpts
+
+createCdnResource_
   ∷ { login ∷ String, passwd ∷ String, storage_id ∷ StorageId, label ∷ String, type ∷ ResourceType }
   → ExceptT ApiCallError Aff (ApiResp (cdnResource ∷ CDNResourceDetails))
-createCdnResource = readCdn77Response <<< post "/cdn-resource/create"
+createCdnResource_ = readCdn77Response <<< post "/cdn-resource/create"
 
 listCdnResources
   ∷ { login ∷ String, passwd ∷ String }

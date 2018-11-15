@@ -2,7 +2,7 @@ module Test.Main where
 
 import Types
 
-import Cdn77 (createStorage, deleteStorage, getCdnResourceDetails, listCdnResources, listStorages, storageDetails)
+import Cdn77 (createCdnResource, createStorage, deleteStorage, getCdnResourceDetails, listCdnResources, listStorages, storageDetails)
 import Control.Applicative ((*>))
 import Control.Monad.Except (ExceptT, except, runExceptT)
 import Data.Argonaut (Json, jsonParser, stringify)
@@ -14,6 +14,7 @@ import Data.Show (show)
 import Debug.Trace (trace, traceM)
 import Effect (Effect)
 import Effect.Aff (Aff, launchAff_)
+import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Node.Process (lookupEnv)
@@ -56,8 +57,10 @@ main = launchAff_ do
       liftEffect $ log "Storage details"
       test storageDetails { passwd, login, id: st.storage.id}
 
-      liftEffect $ log "Delete storage"
-      test deleteStorage { passwd, login, id: st.storage.id}
+      test2 createCdnResource { origin_port: 22 } { login, passwd, storage_id: st.storage.id, label: "PS-API-tests", type: ResourceTypeStandard  }
+
+  --     liftEffect $ log "Delete storage"
+  --     test deleteStorage { passwd, login, id: st.storage.id}
 
   -- liftEffect $ log "== Data =="
 
@@ -92,6 +95,15 @@ main = launchAff_ do
 
     test :: forall e a inp. (inp -> ExceptT e Aff a) -> inp -> Aff Unit
     test cmd = void <<< retTest cmd
+
+    test2 :: forall e a inp1 inp2. (inp1 -> inp2 -> ExceptT e Aff a) -> inp1 -> inp2 -> Aff Unit
+    test2 cmd inp1 = void <<< retTest2 cmd inp1
+
+    retTest2 :: forall e a inp1 inp2. (inp1 -> inp2 -> ExceptT e Aff a) -> inp1 -> inp2 -> Aff (Either e a)
+    retTest2 command p1 p2  = do
+      ret <- runExceptT $ command p1 p2
+      traceM ret
+      pure ret
 
     retTest :: forall e a inp. (inp -> ExceptT e Aff a) -> inp -> Aff (Either e a)
     retTest command params = do
