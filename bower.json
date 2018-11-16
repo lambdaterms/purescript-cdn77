@@ -11,7 +11,7 @@
     "purescript-console": "^4.1.0",
     "purescript-effect": "^2.0.0",
     "purescript-aff": "^5.0.2",
-    "purescript-affjax": "^7.0.0",
+    "purescript-affjax": "lambdaterms-forks/purescript-affjax#master",
     "purescript-transformers": "^4.1.0",
     "purescript-simple-json": "^4.2.0",
     "purescript-node-process": "^6.0.0",
