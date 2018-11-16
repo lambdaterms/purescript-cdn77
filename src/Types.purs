@@ -26,14 +26,14 @@ type ApiResponse a =
   , result ∷ a }
 
 type NonDefaultApiResponse dataR =
-  { status :: String
-  , description :: String
+  { status ∷ String
+  , description ∷ String
   | dataR
   }
 
 type ApiResp dataR =
-  { status :: String
-  , description :: String
+  { status ∷ String
+  , description ∷ String
   | dataR
   }
 
@@ -46,20 +46,20 @@ data ApiCallError = RequestError String
                   | ReturnedObjectTypeError String
                   | ResourceError String
 
-instance showApiCallError :: Show ApiCallError where
+instance showApiCallError ∷ Show ApiCallError where
   show = case _ of
-    RequestError x -> "RequestError " <> x
-    ServerReponseError x -> "ServerReponseError " <> x
-    ReturnedObjectTypeError x -> "ReturnedObjectTypeError " <> x
-    ResourceError x -> "ResourceError " <> x
+    RequestError x → "RequestError " <> x
+    ServerReponseError x → "ServerReponseError " <> x
+    ReturnedObjectTypeError x → "ReturnedObjectTypeError " <> x
+    ResourceError x → "ResourceError " <> x
 
-readImplStringOrInt :: Foreign -> F String
+readImplStringOrInt ∷ Foreign → F String
 readImplStringOrInt frn = do
     case unwrap $ runExceptT (readInt frn) of
-      Right i -> pure (show i)
-      Left x -> readImpl frn
+      Right i → pure (show i)
+      Left x → readImpl frn
     where
-      readInt :: Foreign -> F Int
+      readInt ∷ Foreign → F Int
       readInt = readImpl
 
 newtype ResourceId = ResourceId String
@@ -220,7 +220,7 @@ type Cdn77CreateResourceConfig =
   , mp4_pseudo_on ∷ Switch -- Allow streaming video in mp4 format. For video, a CDN Resource is automatically enabled. Valid values: '0' | '1'
   , gp_type ∷ FilterType  -- Sets geo protection type. Valid values: 'blacklist' | 'whitelist'
   , gp_countries ∷ Array String -- ["FR", "GB", "US"]. Sets geo protection list of whitelisted/blacklisted countries, enter the country's 2 character ISO code.
-  , ipp_type :: FilterType  -- Sets IP protection type. Valid values: 'blacklist' | 'whitelist'
+  , ipp_type ∷ FilterType  -- Sets IP protection type. Valid values: 'blacklist' | 'whitelist'
   , ipp_addresses ∷ Array String  -- ["192.168.25.0/24", “72.53.0.0/16"]. Sets IP protection list of whitelisted/blacklisted addresses. Accepts CIDR notation only.
   , url_signing_on_∷ Switch  -- Allow generating of secured links with expiration time. Content is not available without valid token. Valid values: '0' | '1'
   , url_signing_type ∷ UrlSigningType  --Sets secure token type Valid values: 'parameter' | 'path'
@@ -256,23 +256,23 @@ type CDNResourceBase =
   )
 
 type CDNResourceAdditional base =
-  ( gp_countries :: Array String -- Sets geo protection list of whitelisted/blacklisted countries, enter the country's 2 character ISO code.
-  , gp_type :: Nullable FilterType -- Sets geo protection type. Valid values: 'blacklist' | 'whitelist'
-  , ipp_addresses :: Array String -- Sets IP protection list of whitelisted/blacklisted addresses. Accepts CIDR notation only.
-  , ipp_type :: Nullable FilterType -- Sets IP protection type. Valid values: 'blacklist' | 'whitelist'
-  , platform :: String -- Check more about our new NeXt Generation platform. Valid values: 'nxg' | 'old'
-  , cdn_url :: String -- ?
-  , origin_port :: Maybe (Nullable Int)  -- You can specify port through which we will access your origin.
-  , origin_scheme :: OriginScheme  -- URL scheme of the Origin. Valid values: 'http' | 'https'
-  , https_redirect_code :: Maybe (Nullable String) -- not documented
-  , ignored_query_params :: Maybe (Array String) -- not documented
-  , hlp_type :: Maybe (Nullable FilterType) -- not documented
-  , hlp_deny_empty_referer :: Maybe (Nullable Switch) -- not documented
-  , hlp_referer_domains :: Maybe (Array String) -- Sets hotlink protection list of whitelisted/blacklisted referer domains
-  , http2 :: Maybe (Nullable Switch) -- not documented
-  , streaming_playlist_bypass :: Maybe (Nullable Switch) -- not documented
-  , forward_host_header :: Maybe (Nullable Switch)-- not documented
-  , url_signing_type :: Maybe (Nullable String) -- not documented
+  ( gp_countries ∷ Array String -- Sets geo protection list of whitelisted/blacklisted countries, enter the country's 2 character ISO code.
+  , gp_type ∷ Nullable FilterType -- Sets geo protection type. Valid values: 'blacklist' | 'whitelist'
+  , ipp_addresses ∷ Array String -- Sets IP protection list of whitelisted/blacklisted addresses. Accepts CIDR notation only.
+  , ipp_type ∷ Nullable FilterType -- Sets IP protection type. Valid values: 'blacklist' | 'whitelist'
+  , platform ∷ String -- Check more about our new NeXt Generation platform. Valid values: 'nxg' | 'old'
+  , cdn_url ∷ String -- ?
+  , origin_port ∷ Maybe (Nullable Int)  -- You can specify port through which we will access your origin.
+  , origin_scheme ∷ OriginScheme  -- URL scheme of the Origin. Valid values: 'http' | 'https'
+  , https_redirect_code ∷ Maybe (Nullable String) -- not documented
+  , ignored_query_params ∷ Maybe (Array String) -- not documented
+  , hlp_type ∷ Maybe (Nullable FilterType) -- not documented
+  , hlp_deny_empty_referer ∷ Maybe (Nullable Switch) -- not documented
+  , hlp_referer_domains ∷ Maybe (Array String) -- Sets hotlink protection list of whitelisted/blacklisted referer domains
+  , http2 ∷ Maybe (Nullable Switch) -- not documented
+  , streaming_playlist_bypass ∷ Maybe (Nullable Switch) -- not documented
+  , forward_host_header ∷ Maybe (Nullable Switch)-- not documented
+  , url_signing_type ∷ Maybe (Nullable String) -- not documented
   | base
   )
 type CDNResource = Record CDNResourceBase
@@ -320,8 +320,8 @@ type Storage =
 
 splitProtocols
   ∷ ∀ r r1
-  . { credentials :: { protocol :: String | r} | r1}
-  → { credentials :: { protocol :: Array String | r} | r1}
+  . { credentials ∷ { protocol ∷ String | r} | r1}
+  → { credentials ∷ { protocol ∷ Array String | r} | r1}
 splitProtocols s =
   let prot = trim <$> split (Pattern ",") s.credentials.protocol
   in s{credentials{protocol=prot}}
@@ -413,7 +413,7 @@ instance readForeignReportData ∷ ReadForeign ReportData where
         id' ← readImpl cdnId
         pure {cdnId: id', regions: rr}
         where
-          readString :: Foreign -> F String
+          readString ∷ Foreign → F String
           readString = readImpl
 
 

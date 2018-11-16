@@ -26,15 +26,15 @@ instance anyNothingify ∷ Mapping Nothingify n (Maybe n) where
 
 
 class NothingFields
-  (rl :: RowList) (from :: # Type) (to :: # Type)
-  | rl -> from to where
-  nothingFields :: forall g. g rl -> Builder (Record from) (Record to)
+  (rl ∷ RowList) (from ∷ # Type) (to ∷ # Type)
+  | rl → from to where
+  nothingFields ∷ forall g. g rl → Builder (Record from) (Record to)
 
-instance nothingFieldsNil ::
+instance nothingFieldsNil ∷
   NothingFields Nil () () where
     nothingFields _ = identity
 
-instance nothingFieldsCons ::
+instance nothingFieldsCons ∷
   ( IsSymbol name
   , NothingFields tail from from'
   , Row.Lacks name from'
@@ -42,10 +42,10 @@ instance nothingFieldsCons ::
   ) => NothingFields (Cons name (Maybe a) tail) from to where
   nothingFields _ =
     let
-      first :: Builder (Record from') (Record to)
-      first = Builder.insert (SProxy :: SProxy name) Nothing
+      first ∷ Builder (Record from') (Record to)
+      first = Builder.insert (SProxy ∷ SProxy name) Nothing
     in
-      first <<< nothingFields (RLProxy :: RLProxy tail)
+      first <<< nothingFields (RLProxy ∷ RLProxy tail)
 
 
 buildDefault
@@ -53,8 +53,8 @@ buildDefault
   . HMap Nothingify { | r } { | nr }
   ⇒ RowToList nr nrl
   ⇒ NothingFields nrl () nr
-  ⇒ RProxy r -> { | nr }
-buildDefault _ = Builder.build (nothingFields (RLProxy :: RLProxy nrl)) {}
+  ⇒ RProxy r → { | nr }
+buildDefault _ = Builder.build (nothingFields (RLProxy ∷ RLProxy nrl)) {}
 
 
 -- makeOptionalDefault
@@ -67,4 +67,4 @@ buildDefault _ = Builder.build (nothingFields (RLProxy :: RLProxy nrl)) {}
 --   ⇒ NothingFields nrl () allNothingified
 --   ⇒ Nub ret retNubbed
 --   ⇒ { | provided} → { | retNubbed}
--- makeOptionalDefault prov = merge (hmap Justify prov) (buildDefault (RProxy :: RProxy all))
+-- makeOptionalDefault prov = merge (hmap Justify prov) (buildDefault (RProxy ∷ RProxy all))
