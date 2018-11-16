@@ -15,7 +15,8 @@
     "purescript-transformers": "^4.1.0",
     "purescript-simple-json": "^4.2.0",
     "purescript-node-process": "^6.0.0",
-    "purescript-argonaut": "^4.0.1"
+    "purescript-argonaut": "^4.0.1",
+    "purescript-heterogeneous": "^0.3.0"
   },
   "devDependencies": {
     "purescript-psci-support": "^4.0.0",
