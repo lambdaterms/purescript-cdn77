@@ -30,22 +30,16 @@ import Request (get, post, post2)
 import Response (readCdn77Response)
 import Simple.JSON (class WriteForeignFields)
 import Type.Row (RProxy(..))
-import Types (ApiCallError, ApiRequest, ApiRequestUrl, ApiResp, CDNResourceDetails, CdnId, Report, ReportType, RequestId, RequestType, ResourceType, Storage, StorageId, StorageLocation, StorageLocationId, Timestamp, splitProtocols)
+import Types (ApiCallError, ApiRequest, ApiRequestUrl, ApiResp, CDNResourceDetails, Cdn77CreateResourceConfig, ResourceId, Report, ReportType, RequestId, RequestType, ResourceType, Storage, StorageId, StorageLocation, StorageLocationId, Timestamp, Cdn77EditResourceConfig, splitProtocols)
 
 -------------------------------------------------------
 --------------------- CDNResources --------------------
-
-type OptionalCdnResConfig =
-  ( origin_port :: Int -- You can specify port through which we will access your origin.
-  , storage_id :: Int --Storage Id. See available Storages and their Id in the list of storages. Set to 0 if you want to disable CDN Storage. Ignore query string (qs_status) is set to 1 when you enable CDN Storage as Origin.
-  )
-
 
 createCdnResource
   ∷ ∀ provided providedJustified missing  allNothingified ret retNubbed nrl rl x
   -- | Scaffolding for automatic filling of not-provided optional arguments
   . HMap Justify { | provided } { | providedJustified }
-  ⇒ HMap Nothingify { | OptionalCdnResConfig } { | allNothingified }
+  ⇒ HMap Nothingify { | Cdn77CreateResourceConfig } { | allNothingified }
   ⇒ Union providedJustified allNothingified ret
   ⇒ RowToList allNothingified nrl
   ⇒ NothingFields nrl () allNothingified
@@ -53,13 +47,13 @@ createCdnResource
   ⇒ RowToList retNubbed rl
   ⇒ WriteForeignFields rl retNubbed () x
 -- | Focus on this type when using the function
-  ⇒ Union provided missing OptionalCdnResConfig
+  ⇒ Union provided missing Cdn77CreateResourceConfig
   ⇒ { | provided}
   → { login ∷ String, passwd ∷ String, storage_id ∷ StorageId, label ∷ String, type ∷ ResourceType }
   → ExceptT ApiCallError Aff (ApiResp (cdnResource ∷ CDNResourceDetails))
 createCdnResource opts =
   let
-    allOpts = merge (hmap Justify opts) (buildDefault (RProxy :: RProxy OptionalCdnResConfig))
+    allOpts = merge (hmap Justify opts) (buildDefault (RProxy :: RProxy Cdn77CreateResourceConfig))
   in
     readCdn77Response <<< post2 "/cdn-resource/create" allOpts
 
@@ -68,13 +62,40 @@ createCdnResource_
   → ExceptT ApiCallError Aff (ApiResp (cdnResource ∷ CDNResourceDetails))
 createCdnResource_ = readCdn77Response <<< post "/cdn-resource/create"
 
+editCdnResource
+  ∷ ∀ provided providedJustified missing  allNothingified ret retNubbed nrl rl x
+  -- | Scaffolding for automatic filling of not-provided optional arguments
+  . HMap Justify { | provided } { | providedJustified }
+  ⇒ HMap Nothingify { | Cdn77EditResourceConfig } { | allNothingified }
+  ⇒ Union providedJustified allNothingified ret
+  ⇒ RowToList allNothingified nrl
+  ⇒ NothingFields nrl () allNothingified
+  ⇒ Nub ret retNubbed
+  ⇒ RowToList retNubbed rl
+  ⇒ WriteForeignFields rl retNubbed () x
+-- | Focus on this type when using the function
+  ⇒ Union provided missing Cdn77EditResourceConfig
+  ⇒ { | provided}
+  → { login ∷ String, passwd ∷ String, id ∷ ResourceId }
+  → ExceptT ApiCallError Aff (ApiResp (cdnResource ∷ CDNResourceDetails))
+editCdnResource opts =
+  let
+    allOpts = merge (hmap Justify opts) (buildDefault (RProxy :: RProxy Cdn77EditResourceConfig))
+  in
+    readCdn77Response <<< post2 "/cdn-resource/edit" allOpts
+
+editCdnResource_
+  ∷ { login ∷ String, passwd ∷ String, id ∷ ResourceId }
+  → ExceptT ApiCallError Aff (ApiResp (cdnResource ∷ CDNResourceDetails))
+editCdnResource_ = readCdn77Response <<< post "/cdn-resource/edit"
+
 listCdnResources
   ∷ { login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff (ApiResp (cdnResources ∷ Array CDNResourceDetails))
 listCdnResources = readCdn77Response <<< get "/cdn-resource/list"
 
 getCdnResourceDetails
-  ∷ { id ∷ CdnId, login ∷ String, passwd ∷ String }
+  ∷ { id ∷ ResourceId, login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff (ApiResp (cdnResource ∷ CDNResourceDetails))
 getCdnResourceDetails = readCdn77Response <<< get "/cdn-resource/details"
 
@@ -83,17 +104,17 @@ getCdnResourceDetails = readCdn77Response <<< get "/cdn-resource/details"
 ------------------------ DATA -------------------------
 
 prefetch
-  ∷ { login ∷ String, passwd ∷ String, cdn_id ∷ CdnId, url ∷ Array String }
+  ∷ { login ∷ String, passwd ∷ String, cdn_id ∷ ResourceId, url ∷ Array String }
   → ExceptT ApiCallError Aff (ApiResp (url :: Array String, request_id :: RequestId))
 prefetch = readCdn77Response <<< post "/data/prefetch"
 
 purge
-  ∷ { url ∷ Array String, cdn_id ∷ CdnId, login ∷ String, passwd ∷ String }
+  ∷ { url ∷ Array String, cdn_id ∷ ResourceId, login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff (ApiResp (url :: Array String, request_id :: RequestId))
 purge = readCdn77Response <<< post "/data/purge"
 
 purgeAll
-  ∷ { cdn_id ∷ CdnId, login ∷ String, passwd ∷ String }
+  ∷ { cdn_id ∷ ResourceId, login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff (ApiResp ())
 purgeAll = readCdn77Response <<< post "/data/purge-all"
 
@@ -103,7 +124,7 @@ purgeAll = readCdn77Response <<< post "/data/purge-all"
 
 -- | Lists requests made to Cdn with cdn_id id. Returns error if none.
 listRequests
-  ∷ { type ∷ RequestType, cdn_id ∷ CdnId, login ∷ String, passwd ∷ String }
+  ∷ { type ∷ RequestType, cdn_id ∷ ResourceId, login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff (ApiResp (requests ∷ Array ApiRequest))
 listRequests = readCdn77Response <<< get "/data-queue/list-request"
 
@@ -113,7 +134,7 @@ getRequestDetails
 getRequestDetails = readCdn77Response <<< get "/data-queue/details-request"
 
 listRequestUrl
-  ∷ { request_id ∷ RequestId, cdn_id ∷ CdnId, login ∷ String, passwd ∷ String }
+  ∷ { request_id ∷ RequestId, cdn_id ∷ ResourceId, login ∷ String, passwd ∷ String }
   → ExceptT ApiCallError Aff (ApiResp (urls ∷ ApiRequestUrl))
 listRequestUrl = readCdn77Response <<< get "/data-queue/list-url"
 
@@ -144,7 +165,7 @@ listStorages = map split <<< readCdn77Response <<< get "/storage/list"
     split r = r{ storages = map splitProtocols r.storages }
 
 addStorageCdnResources
-  ∷ { login ∷ String, passwd ∷ String, id ∷ StorageId, cdn_ids ∷ Array CdnId }
+  ∷ { login ∷ String, passwd ∷ String, id ∷ StorageId, cdn_ids ∷ Array ResourceId }
   → ExceptT ApiCallError Aff (ApiResp ())
 addStorageCdnResources = readCdn77Response <<< post "/storage/add-cdn-resource"
 
@@ -163,7 +184,7 @@ listStorageLocations = readCdn77Response <<< get "/storage-location/list"
 
 reportDetails
   ∷ { login ∷ String, passwd ∷ String, type ∷ ReportType
-    , from ∷ Timestamp, to ∷ Timestamp, cdn_ids ∷ Array CdnId}
+    , from ∷ Timestamp, to ∷ Timestamp, cdn_ids ∷ Array ResourceId}
   → ExceptT ApiCallError Aff (ApiResp (report ∷ Report))
 reportDetails = readCdn77Response <<< get "/report/details"
 

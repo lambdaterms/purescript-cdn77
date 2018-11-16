@@ -62,13 +62,13 @@ readImplStringOrInt frn = do
       readInt :: Foreign -> F Int
       readInt = readImpl
 
-newtype CdnId = CdnId String
+newtype ResourceId = ResourceId String
 
-instance readForeignCdnId ∷ ReadForeign CdnId where
-  readImpl = map CdnId <<< readImplStringOrInt
-derive newtype instance writeForeignCdnId ∷ WriteForeign CdnId
-derive newtype instance showCdnId ∷ Show CdnId
-derive newtype instance eqCdnId ∷ Eq CdnId
+instance readForeignResourceId ∷ ReadForeign ResourceId where
+  readImpl = map ResourceId <<< readImplStringOrInt
+derive newtype instance writeForeignResourceId ∷ WriteForeign ResourceId
+derive newtype instance showResourceId ∷ Show ResourceId
+derive newtype instance eqResourceId ∷ Eq ResourceId
 
 
 newtype UrlId = UrlId String
@@ -175,6 +175,20 @@ instance readForeignOriginScheme ∷ ReadForeign OriginScheme where
     x   → except $ Left (singleton $ ForeignError $ "Couldn't match request type value. Should be 'http' or 'https'. Was: '" <> x <> "'")
 
 
+data UrlSigningType = UrlSigningPath | UrlSigningParameter
+derive instance eqUrlSigningType ∷ Eq UrlSigningType
+
+instance writeForeignUrlSigningType ∷ WriteForeign UrlSigningType where
+  writeImpl = case _ of
+    UrlSigningPath → writeImpl "path"
+    UrlSigningParameter → writeImpl "parameter"
+
+instance readForeignUrlSigningType ∷ ReadForeign UrlSigningType where
+  readImpl frn = readImpl frn >>= case _ of
+    "path" → pure UrlSigningPath
+    "paramete" → pure UrlSigningParameter
+    x   → except $ Left (singleton $ ForeignError $ "Couldn't match url signing type value. Should be 'path' or 'parameter'. Was: '" <> x <> "'")
+
 data ResourceType = ResourceTypeStandard | ResourceTypeVideo
 derive instance eqResourceType ∷ Eq ResourceType
 
@@ -189,10 +203,43 @@ instance readForeignResourceType ∷ ReadForeign ResourceType where
     "video" → pure ResourceTypeVideo
     x   → except $ Left (singleton $ ForeignError $ "Couldn't match resource type value. Should be 'standard' or 'video'. Was: '" <> x <> "'")
 
+------------------------------------------
+disableStorage ∷ StorageId
+disableStorage = StorageId "0"
 
+type Cdn77CreateResourceConfig =
+  ( origin_scheme ∷ OriginScheme  -- URL scheme of the Origin. Valid values: 'http' | 'https'
+  , origin_url ∷ String  -- www.domain.ltd 	URL of your content source (Origin). Doesn't have to be set when CDN Storage Id is set (that means instead of using your own URL you use our CDN Storage).
+  , origin_port ∷ Int -- You can specify port through which we will access your origin.
+  , storage_id ∷ StorageId  -- Storage Id. See available Storages and their Id in the list of storages. Set to 0 if you want to disable CDN Storage. Ignore query string (qs_status) is set to 1 when you enable CDN Storage as Origin.
+  , cname ∷ String -- Domain name that will redirect to our CDN server.
+  , other_cnames ∷ Array String  -- Array. Maximum length of array is 9.
+  , cache_expiry ∷ Int	-- In minutes. Valid values: '10' | '10800' | '11520' | '12960' | '1440' | '14440' | '15840' | '17280' | '2160' | '240' | '2880' | '30' | '4320' | '5760' | '60' | '720' | '7200' | '8640'
+  , qs_status ∷ Switch  -- By default the entire URL is treated as a separate cacheable item. If you want to override this, set qs_status to '1', otherwise to '0'. If you have CDN Storage set as Origin, qs_status is automatically set to 1. Valid values: '0' | '1'
+  , setcookie_status ∷ Switch  -- To cache Set-Cookies responses, set this to '1' (disabled by default). Valid values: '0' | '1'
+  , mp4_pseudo_on ∷ Switch -- Allow streaming video in mp4 format. For video, a CDN Resource is automatically enabled. Valid values: '0' | '1'
+  , gp_type ∷ FilterType  -- Sets geo protection type. Valid values: 'blacklist' | 'whitelist'
+  , gp_countries ∷ Array String -- ["FR", "GB", "US"]. Sets geo protection list of whitelisted/blacklisted countries, enter the country's 2 character ISO code.
+  , ipp_type :: FilterType  -- Sets IP protection type. Valid values: 'blacklist' | 'whitelist'
+  , ipp_addresses ∷ Array String  -- ["192.168.25.0/24", “72.53.0.0/16"]. Sets IP protection list of whitelisted/blacklisted addresses. Accepts CIDR notation only.
+  , url_signing_on_∷ Switch  -- Allow generating of secured links with expiration time. Content is not available without valid token. Valid values: '0' | '1'
+  , url_signing_type ∷ UrlSigningType  --Sets secure token type Valid values: 'parameter' | 'path'
+  , url_signing_key ∷ String  -- Key (hash) for signing URLs.
+)
+
+
+type Cdn77EditResourceConfig =
+  ( label ∷ String  -- Your own label of a CDN Resource.
+  , location_group ∷ Int  -- Location group of CDN resource. Users cannot change it.
+  , hlp_type ∷ FilterType -- Sets hotlink protection type Valid values: 'blacklist' | 'whitelist'
+  , hlp_referer_domains ∷ Array String  -- Sets hotlink protection list of whitelisted/blacklisted referer domains
+  , hlp_deny_empty_referer ∷ Switch  -- Sets hotlink protection denying access with empty referer Valid values: '0' | '1
+  , instant_ssl ∷ Switch  -- Set to 1 if you want to have a SSL certificate for every CNAME for free.
+  | Cdn77CreateResourceConfig
+  )
 
 type CDNResourceBase =
-  ( id ∷ CdnId  -- Your CDN Id. See how to retrieve a list of your cdns including their ids.
+  ( id ∷ ResourceId  -- Your CDN Id. See how to retrieve a list of your cdns including their ids.
   , label ∷ String -- Your own label of a CDN Resource.
   , origin_url ∷ String -- URL of your content source (Origin). Doesn't have to be set when CDN Storage Id is set (that means instead of using your own URL you use our CDN Storage).
   , cname ∷ String -- Domain name that will redirect to our CDN server.
@@ -221,7 +268,7 @@ type CDNResourceAdditional base =
   , ignored_query_params :: Maybe (Array String) -- not documented
   , hlp_type :: Maybe (Nullable FilterType) -- not documented
   , hlp_deny_empty_referer :: Maybe (Nullable Switch) -- not documented
-  , hlp_referer_domains :: Maybe (Array String) -- not documented
+  , hlp_referer_domains :: Maybe (Array String) -- Sets hotlink protection list of whitelisted/blacklisted referer domains
   , http2 :: Maybe (Nullable Switch) -- not documented
   , streaming_playlist_bypass :: Maybe (Nullable Switch) -- not documented
   , forward_host_header :: Maybe (Nullable Switch)-- not documented
@@ -235,7 +282,7 @@ type CDNResourceDetails = Record (CDNResourceAdditional CDNResourceBase)
 
 type ApiRequest =
   { id ∷ RequestId -- Queued request ID. You will retrieve this ID in your purge/prefetch request.
-  , cdn_id ∷ CdnId -- CDN Id. See how to retrieve a list of your CDNs including their Ids.
+  , cdn_id ∷ ResourceId -- CDN Id. See how to retrieve a list of your CDNs including their Ids.
   , type ∷ RequestType -- Type of request. Valid values: 'prefetch' | 'purge'
   , created ∷ Timestamp  -- Timestamp of creation.
   , finished ∷ Nullable Timestamp -- Your request receives a timestamp when it has been finished (successfully or not).
@@ -266,7 +313,7 @@ type Storage =
  , zone_name ∷ String -- Zone name has to be unique. Allowed characters: latin alphabet characters, numbers, spaces and '-', '_' symbols.
  , storage_location_id ∷ StorageLocationId -- Storage Location Id. Retrieve list of available storage locations including their ids with the list storage location method.
  , used_space ∷ String -- TODO this would be nicer with some proper parsing. Amount of space used by your data on the CDN Storage.
- , cdn_resources ∷ Array CdnId -- IDs of CDN Resources using this storage.
+ , cdn_resources ∷ Array ResourceId -- IDs of CDN Resources using this storage.
  , credentials ∷ StorageCredentials -- Object with params: protocol, host, user, pass.
  }
 
@@ -341,7 +388,7 @@ type RegionsReport =
   , au ∷ Number
   , af ∷ Number }
 
-newtype ReportData = ReportData (Array { cdnId ∷ CdnId , regions ∷ RegionsReport } )
+newtype ReportData = ReportData (Array { cdnId ∷ ResourceId , regions ∷ RegionsReport } )
 
 derive instance eqReportData ∷ Eq ReportData
 

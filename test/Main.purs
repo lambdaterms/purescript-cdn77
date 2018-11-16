@@ -112,7 +112,7 @@ main = launchAff_ do
       pure ret
 
     storage_id = StorageId "user_e6nixmh5"
-    cdn_id = CdnId "153308"
+    cdn_id = ResourceId "153308"
     request_id = RequestId "0" -- no such request
     urls = ["README.md"]
     requestType = Purge
