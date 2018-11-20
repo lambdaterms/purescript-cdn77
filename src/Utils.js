@@ -2,14 +2,16 @@
 
 exports.urlEncodedImpl = function(makeTuple){
   return function(obj){
-    return Object.keys(obj).map(function(k) {
-      if(Array.isArray(obj[k])){
-        return makeTuple(k+"[]")(obj[k].toString());
-      }
-      else{
-        return makeTuple(k)(obj[k].toString());
-      }
-    });
+    return Object.keys(obj)
+      .filter(function(k){return obj[k] != null;})
+      .map(function(k) {
+          if(Array.isArray(obj[k])){
+            return makeTuple(k+"[]")(obj[k].toString());
+          }
+          else{
+            return makeTuple(k)(obj[k].toString());
+          }
+      });
   };
 };
 
