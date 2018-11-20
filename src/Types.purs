@@ -211,7 +211,6 @@ type Cdn77CreateResourceConfig =
   ( origin_scheme ∷ OriginScheme  -- URL scheme of the Origin. Valid values: 'http' | 'https'
   , origin_url ∷ String  -- www.domain.ltd 	URL of your content source (Origin). Doesn't have to be set when CDN Storage Id is set (that means instead of using your own URL you use our CDN Storage).
   , origin_port ∷ Int -- You can specify port through which we will access your origin.
-  , storage_id ∷ StorageId  -- Storage Id. See available Storages and their Id in the list of storages. Set to 0 if you want to disable CDN Storage. Ignore query string (qs_status) is set to 1 when you enable CDN Storage as Origin.
   , cname ∷ String -- Domain name that will redirect to our CDN server.
   , other_cnames ∷ Array String  -- Array. Maximum length of array is 9.
   , cache_expiry ∷ Int	-- In minutes. Valid values: '10' | '10800' | '11520' | '12960' | '1440' | '14440' | '15840' | '17280' | '2160' | '240' | '2880' | '30' | '4320' | '5760' | '60' | '720' | '7200' | '8640'
