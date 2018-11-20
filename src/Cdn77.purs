@@ -1,19 +1,29 @@
 module Cdn77
+---  resouurce ---
  ( createCdnResource
+ , createCdnResource_
+ , editCdnResource
+ , editCdnResource_
  , listCdnResources
+ , deleteCdnResource
  , getCdnResourceDetails
+--- data management ---
  , prefetch
  , purge
  , purgeAll
+--- data queue ---
  , listRequests
  , getRequestDetails
  , listRequestUrl
+--- storage ---
  , createStorage
  , storageDetails
  , deleteStorage
  , listStorages
  , addStorageCdnResources
+--- storage location ---
  , listStorageLocations
+--- report ---
  , reportDetails
  ) where
 
@@ -88,6 +98,11 @@ editCdnResource_
   ∷ { login ∷ String, passwd ∷ String, id ∷ ResourceId }
   → ExceptT ApiCallError Aff (ApiResp (cdnResource ∷ CDNResourceDetails))
 editCdnResource_ = readCdn77Response <<< post "/cdn-resource/edit"
+
+deleteCdnResource
+  ∷ { login ∷ String, passwd ∷ String, id :: ResourceId }
+  → ExceptT ApiCallError Aff (ApiResp ())
+deleteCdnResource = readCdn77Response <<< post "/cdn-resource/post"
 
 listCdnResources
   ∷ { login ∷ String, passwd ∷ String }
