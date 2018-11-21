@@ -44,14 +44,14 @@ type Timestamp = String
 data ApiCallError = RequestError String
                   | ServerReponseError String
                   | ReturnedObjectTypeError String
-                  | ResourceError String
+                  | ErrorApiResponseStatus String
 
 instance showApiCallError ∷ Show ApiCallError where
   show = case _ of
     RequestError x → "RequestError " <> x
     ServerReponseError x → "ServerReponseError " <> x
     ReturnedObjectTypeError x → "ReturnedObjectTypeError " <> x
-    ResourceError x → "ResourceError " <> x
+    ErrorApiResponseStatus x → "ErrorApiResponseStatus " <> x
 
 readImplStringOrInt ∷ Foreign → F String
 readImplStringOrInt frn = do

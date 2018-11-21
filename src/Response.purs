@@ -40,12 +40,12 @@ readCdn77Response reqAff = ExceptT $ attempt reqAff >>= \respAttempt → pure $ 
         if status /= "ok"
           then do
             desc ← withError
-              (ResourceError $ "Response status was" <> status)
+              (ErrorApiResponseStatus $ "Response status was" <> status)
               (stringify <$> lookup "description" obj)
             let errorDetails = case stringify <$> lookup "errors" obj of
                   Nothing -> ""
                   Just errs -> " Errors: " <> errs
-            Left $ ResourceError (desc <> errorDetails)
+            Left $ ErrorApiResponseStatus (desc <> errorDetails)
           else readJson body)
     body
   where
