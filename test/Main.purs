@@ -16,6 +16,7 @@ import Data.Functor ((<#>))
 import Data.HeytingAlgebra (not, (&&), (||))
 import Data.Maybe (Maybe(..))
 import Data.Monoid ((<>))
+import Data.Nullable (Nullable, notNull, null)
 import Data.Show (class Show, show)
 import Data.Unit (unit)
 import Effect (Effect)
@@ -38,10 +39,8 @@ import Unsafe.Coerce (unsafeCoerce)
 import Utils (toMaybe)
 
 
-
-
 main :: Effect Unit
-main = runTest $ jsonForeignTestSuite *> cdn77ApiTestSuite
+main = runTest $ maybeNullableJsonSuite *> jsonForeignTestSuite *> cdn77ApiTestSuite
 
 
 cdn77ApiTestSuite :: TestSuite
@@ -51,7 +50,7 @@ cdn77ApiTestSuite = do
       storeName = "PsApiTest_v_0_1_0_store"
       storeTemp = "PsApiTest_v_0_1_0_store_temp"
 
-  cdn77T test "Listing storage locations & creating permament storage and resource for testing purposes. New storage becomes available in ~5 minutes!" $
+  cdn77T testSkip "Listing storage locations & creating permament storage and resource for testing purposes. New storage becomes available in ~5 minutes!" $
     \ { login, passwd } -> do
       llog $ login <> " " <> passwd
       llog "Listing available storage locations:"
@@ -152,7 +151,7 @@ cdn77ApiTestSuite = do
         { passwd, login, id: r1.id }
       llog $ writeJSON dres
 
-  cdn77T testSkip  "Get storage creds & manage file with sftp & make requests & check it" $
+  cdn77T test  "Get storage creds & manage file with sftp & make requests & check it" $
     \ { login, passwd } -> do
 
       llog "Listing storages"
@@ -279,9 +278,6 @@ cdn77ApiTestSuite = do
       false -> throwError msg
       _ -> pure unit
 
-    llog' :: String -> Aff Unit
-    llog' = liftEffect <<< log
-
     llog :: forall e. String -> ExceptT e Aff Unit
     llog = lift <<< liftEffect <<< log
 
@@ -310,6 +306,39 @@ cdn77ApiTestSuite = do
             llog' "Succesfully read CDN7 api credentials from the environment."
             asTest (act {login, passwd})
           _, _ -> failure "Couldn't read api credentials from environment. Provide CDN77_API_PASSWORD & CDN77_API_LOGIN variables"
+
+
+maybeNullableJsonSuite :: TestSuite
+maybeNullableJsonSuite = suite "Testing behaviour of Maybe (Nullable a)" $ do
+  test "write nothing" $ do
+    let str = writeJSON (testR (Nothing :: Maybe (Nullable Int)))
+    llog' $ str
+    Assert.assert "Should't be included." ( str == writeJSON testUndef)
+
+  test "write just" $ do
+    let str = writeJSON (testR (Just (notNull 10)))
+    llog' str
+    Assert.assert "Should equal" ( str == writeJSON (testPresent 10))
+
+  test "write null" $ do
+    let str = writeJSON (testR (Just (null :: Nullable Int)))
+    llog' str
+    Assert.assert "Should equal" ( str == writeJSON testNull)
+
+  where
+    testR :: forall a. WriteForeign a => Maybe (Nullable a) -> { a :: Maybe (Nullable a), i :: Int, s :: String}
+    testR a = {a, i: 1, s: "foo"}
+
+    testUndef :: {i :: Int, s :: String}
+    testUndef = {i: 1, s: "foo"}
+
+    testPresent :: forall a. a -> {a :: a, i :: Int, s :: String}
+    testPresent a = {a, i: 1, s: "foo"}
+
+    testNull :: {a :: Nullable Int, i :: Int, s :: String}
+    testNull = {a: null, i: 1, s: "foo"}
+
+
 
 jsonForeignTestSuite :: TestSuite
 jsonForeignTestSuite = suite "Argonaut's Json vs Simple.JSON's Foreign equivalence tests" do
@@ -449,3 +478,6 @@ instance encodeJsonTestObj :: EncodeJson TestObj where
     ~> "c" := obj.c
     ~> "d" := obj.d
     ~> jsonEmptyObject
+
+llog' :: String -> Aff Unit
+llog' = liftEffect <<< log
