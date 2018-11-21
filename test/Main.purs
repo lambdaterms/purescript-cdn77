@@ -46,31 +46,40 @@ main = runTest $ jsonForeignTestSuite *> cdn77ApiTestSuite
 
 cdn77ApiTestSuite :: TestSuite
 cdn77ApiTestSuite = do
-  let zone = "apiTest1012"
-      resName = "apiTest103"
+  let resName = "__ps-api-test-v.0.1.0-res"
+      resTemp = "__ps-api-test-v.0.1.0-res-temp"
+      storeName = "__ps-api-test-v.0.1.0-store"
+      storeTemp = "__ps-api-test-v.0.1.0-store-temp"
 
-  cdn77T testSkip "Listing storage locations & creating storage with unique name. New storage becomes available in ~5 minutes!" $
+  cdn77T test "Listing storage locations & creating storage with unique name. New storage becomes available in ~5 minutes!" $
     \ { login, passwd } -> do
+      llog $ login <> " " <> passwd
       llog "Listing available storage locations:"
       locs <- l (listStorageLocations { login, passwd } )
       llog $ show locs
 
       locId <- errOnNothing "No available storage locations." $ head locs.storageLocations <#> _.id
 
-      llog "Creating storage for testing purposes"
-      store <- l $ createStorage { passwd, login, storage_location_id: locId, zone_name: zone}
-      llog $ show store
+      llog "Creating permament storage for testing purposes"
+      llog $ writeJSON locId
+      storeResp <- l $ createStorage { passwd, login, storage_location_id: locId, zone_name: storeName}
+      llog $ show storeResp
+
+      llog "Creating permament resource for testing purposes"
+      resResp <- l $ createCdnResource_ { passwd, login, label: resName, type: ResourceTypeStandard, storage_id: storeResp.storage.id }
+      llog $ writeJSON resResp
 
   cdn77T testSkip  "Create, edit and manipulate storage" $
     \ { login, passwd } -> do
+
       llog "Listing available storage locations:"
       locs <- l (listStorageLocations { login, passwd } )
       llog $ show locs
 
       locId <- errOnNothing "No available storage locations." $ head locs.storageLocations <#> _.id
 
-      llog "Creating storage for testing purposes:"
-      store <- l $ createStorage { passwd, login, storage_location_id: locId, zone_name: "apiTest102"}
+      llog "Creating temporary storage for testing purposes:"
+      store <- l $ createStorage { passwd, login, storage_location_id: locId, zone_name: storeTemp }
       llog $ show store
 
       llog "Getting store details:"
@@ -85,7 +94,7 @@ cdn77ApiTestSuite = do
       assert "Storages should contain newly created one"
         (store2.storage `elem` stores.storages)
 
-      llog "Deleting storage"
+      llog "Deleting temporary storage"
       void $ l $ deleteStorage { passwd, login, id: store2.storage.id }
 
   cdn77T testSkip  "Create, edit and manipulate resource" $
@@ -96,17 +105,17 @@ cdn77ApiTestSuite = do
 
       locId <- errOnNothing "No available storage locations." $ head locs.storageLocations <#> _.id
 
-      llog "Creating storage for testing purposes:"
-      store <- l $ createStorage { passwd, login, storage_location_id: locId, zone_name: "apiTest103"}
-      llog $ show store
+      llog "Creating temporary storage for testing purposes:"
+      storeResp <- l $ createStorage { passwd, login, storage_location_id: locId, zone_name: storeTemp }
+      llog $ show storeResp
 
-      llog "Creating resource for testing purposes:"
+      llog $ "Creating temporary resource for testing purposes (label: "<> resTemp <> " ):"
       res <- l $ createCdnResource
         { gp_type: Whitelist
         , gp_countries: ["PL"]}
         { passwd, login
-        , storage_id: store.storage.id
-        , label: resName
+        , storage_id: storeResp.storage.id
+        , label: resTemp
         , type: ResourceTypeStandard}
       let r1 = res.cdnResource
       llog $ writeJSON res
@@ -131,23 +140,27 @@ cdn77ApiTestSuite = do
       llog $ writeJSON res1e
 
       assert "Edited resource asserts"
-
         (res1e.cdnResource.id == r1.id && res1e.cdnResource.label == "changed")
 
-      llog "Deleting resource"
+      llog "Deleting temporary storage"
+      dsResp <- l $ deleteStorage
+        { passwd, login, id: storeResp.storage.id }
+      llog $ writeJSON dsResp
+
+      llog "Deleting temporary resource"
       dres <- l $ deleteCdnResource
         { passwd, login, id: r1.id }
       llog $ writeJSON dres
 
-  cdn77T test  "Get storage creds & manage file with sftp & make requests & check it" $
+  cdn77T testSkip  "Get storage creds & manage file with sftp & make requests & check it" $
     \ { login, passwd } -> do
 
       llog "Listing storages"
-      stores <- l $ listStorages { login, passwd }
-      llog $ show stores
-      llog $ "Looking for storage with zone_name: " <> zone
+      storesResp <- l $ listStorages { login, passwd }
+      llog $ show storesResp
+      llog $ "Looking for storage with zone_name: " <> storeName
 
-      store <- case find (\s -> s.zone_name == zone) stores.storages of
+      store <- case find (\s -> s.zone_name == storeName) storesResp.storages of
         Nothing -> throwError "Storage not found. You can create it with running one of prepared tests."
         Just r -> pure r
 
@@ -162,7 +175,7 @@ cdn77ApiTestSuite = do
             , password: store.credentials.pass }
 
           remoteRoot = "/www/"
-          remoteDir = remoteRoot <> zone
+          remoteDir = remoteRoot <> storeName
           fileName = "bower.json"
           remotePath = remoteDir <> "/" <> fileName
 
@@ -171,11 +184,11 @@ cdn77ApiTestSuite = do
         liftAff $ llog' $ "Connected to sftp://" <> config.host
         ls <- Sftp.list remoteRoot
         liftAff $ llog' $ "Listing " <> remoteRoot <> " directory:\n" <> show ls
-        case find (\fi -> fi.type == "d" && fi.name == zone) ls of
+        case find (\fi -> fi.type == "d" && fi.name == storeName) ls of
           Nothing -> do
-            liftAff $ llog' $ "Creating directory: " <> zone
+            liftAff $ llog' $ "Creating directory: " <> storeName
             Sftp.mkdir {path: remoteDir, recursive: false}
-          Just d -> liftAff $ llog' $ "Directory exists: " <> zone
+          Just d -> liftAff $ llog' $ "Directory exists: " <> storeName
 
         liftAff $ llog' $ "Uploading file: " <> fileName
         Sftp.fastPut {local: fileName, remote: remotePath }
@@ -231,7 +244,7 @@ cdn77ApiTestSuite = do
       reqUrlsDetRes <- l $ listRequestUrl { cdn_id: res.id, request_id: req.id, login, passwd }
       llog $ writeJSON reqUrlsDetRes
 
-  cdn77T test "Getting & showing report" $
+  cdn77T testSkip "Getting & showing report" $
     \ { login, passwd } -> do
       let from = "1520950125"
           to = "1650950125"
