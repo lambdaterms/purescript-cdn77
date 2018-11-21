@@ -22,6 +22,7 @@
     "purescript-psci-support": "^4.0.0",
     "purescript-debug": "^4.0.0",
     "purescript-test-unit": "^14.0.0",
-    "purescript-quickcheck": "^5.0.0"
+    "purescript-quickcheck": "^5.0.0",
+    "purescript-ssh2-sftp-client": "^0.1.0"
   }
 }
