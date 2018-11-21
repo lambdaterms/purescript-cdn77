@@ -51,7 +51,7 @@ cdn77ApiTestSuite = do
       storeName = "__ps-api-test-v.0.1.0-store"
       storeTemp = "__ps-api-test-v.0.1.0-store-temp"
 
-  cdn77T test "Listing storage locations & creating storage with unique name. New storage becomes available in ~5 minutes!" $
+  cdn77T test "Listing storage locations & creating permament storage and resource for testing purposes. New storage becomes available in ~5 minutes!" $
     \ { login, passwd } -> do
       llog $ login <> " " <> passwd
       llog "Listing available storage locations:"
