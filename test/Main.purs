@@ -46,10 +46,10 @@ main = runTest $ jsonForeignTestSuite *> cdn77ApiTestSuite
 
 cdn77ApiTestSuite :: TestSuite
 cdn77ApiTestSuite = do
-  let resName = "__ps-api-test-v.0.1.0-res"
-      resTemp = "__ps-api-test-v.0.1.0-res-temp"
-      storeName = "__ps-api-test-v.0.1.0-store"
-      storeTemp = "__ps-api-test-v.0.1.0-store-temp"
+  let resName = "PsApiTest_v_0_1_0_resource"
+      resTemp = "PsApiTest_v_0_1_0_resource"
+      storeName = "PsApiTest_v_0_1_0_store"
+      storeTemp = "PsApiTest_v_0_1_0_store_temp"
 
   cdn77T test "Listing storage locations & creating permament storage and resource for testing purposes. New storage becomes available in ~5 minutes!" $
     \ { login, passwd } -> do
