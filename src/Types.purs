@@ -39,7 +39,7 @@ type ApiResp dataR =
 
 
 -- [TODO]
-type Timestamp = Int
+type Timestamp = String
 
 data ApiCallError = RequestError String
                   | ServerReponseError String
@@ -244,10 +244,10 @@ type CDNResourceBase =
   , cname ∷ String -- Domain name that will redirect to our CDN server.
   , cache_expiry ∷ Int -- In minutes. Valid values: '10' | '10800' | '11520' | '12960' | '1440' | '14440' | '15840' | '17280' | '2160' | '240' | '2880' | '30' | '4320' | '5760' | '60' | '720' | '7200' | '8640'
   , url_signing_on ∷ Switch -- Allow generating of secured links with expiration time. Content is not available without valid token. Valid values: '0' | '1'
-  , url_signing_key ∷ Nullable String -- Key (hash) for signing URLs.
+  , url_signing_key ∷ Maybe (Nullable String) -- Key (hash) for signing URLs.
   , instant_ssl ∷ Switch -- Set to 1 if you want to have a SSL certificate for every CNAME for free.
   , type ∷ Maybe (Nullable ResourceType) -- Valid values: 'standard' | 'video'
-  , storage_id ∷ Nullable StorageId -- Storage Id. See available Storages and their Id in the list of storages. Set to 0 if you want to disable CDN Storage. Ignore query string (qs_status) is set to 1 when you enable CDN Storage as Origin.
+  , storage_id ∷ Maybe (Nullable StorageId) -- Storage Id. See available Storages and their Id in the list of storages. Set to 0 if you want to disable CDN Storage. Ignore query string (qs_status) is set to 1 when you enable CDN Storage as Origin.
   , qs_status ∷ Switch -- By default the entire URL is treated as a separate cacheable item. If you want to override this, set qs_status to '1', otherwise to '0'. If you have CDN Storage set as Origin, qs_status is automatically set to 1. Valid values: '0' | '1'
   , setcookie_status ∷ Switch -- To cache Set-Cookies responses, set this to '1' (disabled by default). Valid values: '0' | '1'
   , other_cnames ∷ Array String  -- Array. Maximum length of array is 9.
@@ -256,9 +256,9 @@ type CDNResourceBase =
 
 type CDNResourceAdditional base =
   ( gp_countries ∷ Array String -- Sets geo protection list of whitelisted/blacklisted countries, enter the country's 2 character ISO code.
-  , gp_type ∷ Nullable FilterType -- Sets geo protection type. Valid values: 'blacklist' | 'whitelist'
+  , gp_type ∷ Maybe (Nullable FilterType) -- Sets geo protection type. Valid values: 'blacklist' | 'whitelist'
   , ipp_addresses ∷ Array String -- Sets IP protection list of whitelisted/blacklisted addresses. Accepts CIDR notation only.
-  , ipp_type ∷ Nullable FilterType -- Sets IP protection type. Valid values: 'blacklist' | 'whitelist'
+  , ipp_type ∷ Maybe (Nullable FilterType) -- Sets IP protection type. Valid values: 'blacklist' | 'whitelist'
   , platform ∷ String -- Check more about our new NeXt Generation platform. Valid values: 'nxg' | 'old'
   , cdn_url ∷ String -- ?
   , origin_port ∷ Maybe (Nullable Int)  -- You can specify port through which we will access your origin.
@@ -284,17 +284,17 @@ type ApiRequest =
   , cdn_id ∷ ResourceId -- CDN Id. See how to retrieve a list of your CDNs including their Ids.
   , type ∷ RequestType -- Type of request. Valid values: 'prefetch' | 'purge'
   , created ∷ Timestamp  -- Timestamp of creation.
-  , finished ∷ Nullable Timestamp -- Your request receives a timestamp when it has been finished (successfully or not).
+  , finished ∷ Maybe (Nullable Timestamp) -- Your request receives a timestamp when it has been finished (successfully or not).
   , url_successful ∷ Int -- Amount of successfully proceeded URL. Until the request is finished, this number may increase in time.
   , url_total ∷ Int --	Total amount of URL in a request.
-  , waiting_for_request_id ∷ Nullable Int -- When enabling the 'purge_first' option on the prefetch method, the urls are saved into the queue twice - first into the purge and then to the prefetch. To ensure the purge is proceeded first, we add the id of the purge request into the prefetch as value waiting_for_request_id. Valid values: null or int.
+  , waiting_for_request_id ∷ Maybe (Nullable Int) -- When enabling the 'purge_first' option on the prefetch method, the urls are saved into the queue twice - first into the purge and then to the prefetch. To ensure the purge is proceeded first, we add the id of the purge request into the prefetch as value waiting_for_request_id. Valid values: null or int.
   }
 
 type ApiRequestUrl =
  { id ∷ UrlId
  , request_id ∷ RequestId
  , url ∷ String
- , finished ∷ Nullable Timestamp -- Until the URL has proceeded value of 'finished’ is NULL. After that the timestamp is shown. Remember that an URL may be marked as finished whether it was proceeded successfully or not.
+ , finished ∷ Maybe (Nullable Timestamp) -- Until the URL has proceeded value of 'finished’ is NULL. After that the timestamp is shown. Remember that an URL may be marked as finished whether it was proceeded successfully or not.
  , finished_successfully ∷ Boolean -- Whether the purge or prefetch of a given URL was successful or not.
  }
 

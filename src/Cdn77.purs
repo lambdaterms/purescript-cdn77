@@ -150,7 +150,7 @@ getRequestDetails = readCdn77Response <<< get "/data-queue/details-request"
 
 listRequestUrl
   ∷ { request_id ∷ RequestId, cdn_id ∷ ResourceId, login ∷ String, passwd ∷ String }
-  → ExceptT ApiCallError Aff (ApiResp (urls ∷ ApiRequestUrl))
+  → ExceptT ApiCallError Aff (ApiResp (urls ∷ Array ApiRequestUrl))
 listRequestUrl = readCdn77Response <<< get "/data-queue/list-url"
 
 
