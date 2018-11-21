@@ -6,8 +6,11 @@
   "author": "Michał Adamczyk <michal.anks@gmail.com>",
   "license": "BSD-3-Clause",
   "private": false,
-  "dependencies": {
+  "devDependencies": {
     "ftps": "^1.1.1",
+    "ssh2-sftp-client": "^2.4.2"
+  },
+  "dependencies": {
     "xhr2": "^0.1.4"
   }
 }
