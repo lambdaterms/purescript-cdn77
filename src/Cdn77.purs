@@ -3,7 +3,6 @@ module Cdn77
  ( createCdnResource
  , createCdnResource_
  , editCdnResource
- , editCdnResource_
  , listCdnResources
  , deleteCdnResource
  , getCdnResourceDetails
@@ -96,11 +95,6 @@ editCdnResource opts =
     allOpts = merge (hmap Justify opts) (buildDefault (RProxy :: RProxy Cdn77EditResourceConfig))
   in
     readCdn77Response <<< post2 "/cdn-resource/edit" allOpts
-
-editCdnResource_
-  ∷ { login ∷ String, passwd ∷ String, id ∷ ResourceId }
-  → ExceptT ApiCallError Aff (ApiResp (cdnResource ∷ CDNResourceDetails))
-editCdnResource_ = readCdn77Response <<< post "/cdn-resource/edit"
 
 deleteCdnResource
   ∷ { login ∷ String, passwd ∷ String, id :: ResourceId }
