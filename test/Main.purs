@@ -2,7 +2,7 @@ module Test.Main where
 
 import Types
 
-import Cdn77 (createCdnResource, createCdnResource_, createStorage, deleteCdnResource, deleteStorage, editCdnResource, getCdnResourceDetails, getRequestDetails, listCdnResources, listRequestUrl, listRequests, listStorageLocations, listStorages, prefetch, purge, purgeAll, reportDetails, storageDetails)
+import Cdn77 (addStorageCdnResources, createCdnResource, createCdnResource_, createStorage, deleteCdnResource, deleteStorage, editCdnResource, getCdnResourceDetails, getRequestDetails, listCdnResources, listRequestUrl, listRequests, listStorageLocations, listStorages, prefetch, purge, purgeAll, reportDetails, storageDetails)
 import Control.Alt ((<|>))
 import Control.Applicative ((*>))
 import Control.Bind ((>>=))
@@ -27,7 +27,7 @@ import Effect.Console (log)
 import Foreign (Foreign)
 import Node.Network.SftpClient (list, mkdir, fastPut, runSftpSession) as Sftp
 import Node.Process (lookupEnv)
-import Prelude (Unit, bind, discard, pure, void, ($), (<<<))
+import Prelude (Unit, bind, discard, pure, ($), (<<<))
 import Simple.JSON (class ReadForeign, class WriteForeign, E, read, readJSON, readJSON_, write, writeJSON)
 import Test.QuickCheck (class Arbitrary, Result(..), (<?>), (===))
 import Test.Unit (Test, TestSuite, failure, success, suite, test, testSkip)
@@ -45,9 +45,9 @@ main = runTest $ jsonForeignTestSuite *> cdn77ApiTestSuite
 cdn77ApiTestSuite :: TestSuite
 cdn77ApiTestSuite = do
   let resName = "PsApiTest_v_0_1_0_resource"
-      resTemp = "PsApiTest_v_0_1_0_resource_temp10"
+      resTemp = "PsApiTest_v_0_1_0_resource_temp102"
       storeName = "PsApiTest_v_0_1_0_store"
-      storeTemp = "PsApiTest_v_0_1_0_store_temp10"
+      storeTemp = "PsApiTest_v_0_1_0_store_temp102"
 
   cdn77T test "Listing storage locations & creating permament storage and resource for testing purposes. New storage becomes available in ~5 minutes!" $
     \ { login, passwd } -> do
@@ -109,8 +109,39 @@ cdn77ApiTestSuite = do
       assert "Storages should contain newly created one"
         (store2.storage `elem` stores.storages)
 
+      llog "Binding permament test resource to this storage."
+
+      llog "Listing resources"
+      ressResp <- l $ listCdnResources { passwd, login }
+      llog $ writeJSON ressResp
+
+      case find (\r -> r.label == resName) ressResp.cdnResources of
+        Just res -> do
+          llog "Found permament test resource. Proceeding "
+          addResourceResp <- l $ addStorageCdnResources { login, passwd, id: store2.storage.id, cdn_ids: [res.id]}
+          llog $ show addResourceResp
+
+          llog "Reverting new storage bind."
+
+          llog "Listing storages"
+          storesResp <- l $ listStorages { passwd, login }
+          llog $ writeJSON storesResp
+
+          res1e <- case find (\s -> s.zone_name == storeName) storesResp.storages of
+            Just store' -> do
+              llog "Setting permament test storage as the resoure storage"
+              l $ editCdnResource { storage_id: store'.id } { passwd, login, id: res.id }
+            Nothing -> do
+              llog "Setting origin url: lambdaterms.com in place of storage"
+              l $ editCdnResource { storage_id: disableStorage, origin_url:"lambdaterms.com"} { passwd, login, id: res.id }
+          llog $ writeJSON res1e
+
+        Nothing -> do
+          llog "Couldn't find permament test resource. Create one using one of prepared tests. Skipping binding resource test."
+
       llog "Deleting temporary storage"
-      void $ l $ deleteStorage { passwd, login, id: store2.storage.id }
+      deleteResp <- l $ deleteStorage { passwd, login, id: store2.storage.id }
+      llog $ show deleteResp
 
   cdn77T test "Create, edit and manipulate resource" $
     \ { login, passwd } -> do
