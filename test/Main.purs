@@ -13,7 +13,7 @@ import Data.Either (Either(..), either)
 import Data.Eq (class Eq, (==))
 import Data.Function (identity)
 import Data.Functor ((<#>))
-import Data.HeytingAlgebra (not, (&&), (||))
+import Data.HeytingAlgebra (not, (&&))
 import Data.Maybe (Maybe(..))
 import Data.Monoid ((<>))
 import Data.Nullable (Nullable, notNull, null)
@@ -298,7 +298,7 @@ cdn77ApiTestSuite = do
       llog $ "Looking for resource with test id: " <> resName
       ress <- l $ listCdnResources { passwd, login }
       llog $ writeJSON ress
-      res <- errOnNothing "Couldn't not find. Cannot report." $ find (\res -> res.label == resName || res.label == resName <> zone) ress.cdnResources
+      res <- errOnNothing "Couldn't not find. Cannot report." $ find (\res -> res.label == resName ) ress.cdnResources
 
       llog "Showing report for Bandwidth"
       repBandRes <- l $ reportDetails { login, passwd, type: Bandwidth, cdn_ids: [res.id], from, to }
