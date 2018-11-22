@@ -28,7 +28,7 @@ import Foreign (Foreign)
 import Node.Network.SftpClient (list, mkdir, fastPut, runSftpSession) as Sftp
 import Node.Process (lookupEnv)
 import Prelude (Unit, bind, discard, pure, void, ($), (<<<))
-import Simple.JSON (class ReadForeign, class WriteForeign, E, read, write, writeJSON)
+import Simple.JSON (class ReadForeign, class WriteForeign, E, read, readJSON, readJSON_, write, writeJSON)
 import Test.QuickCheck (class Arbitrary, Result(..), (<?>), (===))
 import Test.Unit (Test, TestSuite, failure, success, suite, test, testSkip)
 import Test.Unit.Assert as Assert
@@ -36,21 +36,20 @@ import Test.Unit.Main (runTest)
 import Test.Unit.QuickCheck (quickCheck)
 import Type.Proxy (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
-import Utils (toMaybe)
 
 
 main :: Effect Unit
-main = runTest $ maybeNullableJsonSuite *> jsonForeignTestSuite *> cdn77ApiTestSuite
+main = runTest $ jsonForeignTestSuite *> cdn77ApiTestSuite
 
 
 cdn77ApiTestSuite :: TestSuite
 cdn77ApiTestSuite = do
   let resName = "PsApiTest_v_0_1_0_resource"
-      resTemp = "PsApiTest_v_0_1_0_resource"
+      resTemp = "PsApiTest_v_0_1_0_resource_temp10"
       storeName = "PsApiTest_v_0_1_0_store"
-      storeTemp = "PsApiTest_v_0_1_0_store_temp"
+      storeTemp = "PsApiTest_v_0_1_0_store_temp10"
 
-  cdn77T testSkip "Listing storage locations & creating permament storage and resource for testing purposes. New storage becomes available in ~5 minutes!" $
+  cdn77T test "Listing storage locations & creating permament storage and resource for testing purposes. New storage becomes available in ~5 minutes!" $
     \ { login, passwd } -> do
       llog $ login <> " " <> passwd
       llog "Listing available storage locations:"
@@ -59,16 +58,33 @@ cdn77ApiTestSuite = do
 
       locId <- errOnNothing "No available storage locations." $ head locs.storageLocations <#> _.id
 
-      llog "Creating permament storage for testing purposes"
-      llog $ writeJSON locId
-      storeResp <- l $ createStorage { passwd, login, storage_location_id: locId, zone_name: storeName}
-      llog $ show storeResp
+      llog "Listing storages"
+      storesResp <- l $ listStorages { passwd, login }
+      llog $ writeJSON storesResp
 
-      llog "Creating permament resource for testing purposes"
-      resResp <- l $ createCdnResource_ { passwd, login, label: resName, type: ResourceTypeStandard, storage_id: storeResp.storage.id }
-      llog $ writeJSON resResp
 
-  cdn77T testSkip  "Create, edit and manipulate storage" $
+      store <- case find (\s -> s.zone_name == storeName) storesResp.storages of
+        Just x -> llog "Permament test storage already exists" *> pure x
+        Nothing -> do
+          llog "Creating permament storage for testing purposes"
+          llog $ writeJSON locId
+          storeResp <- l $ createStorage { passwd, login, storage_location_id: locId, zone_name: storeName}
+          llog $ show storeResp
+          pure $ storeResp.storage
+
+      llog "Listing resources"
+      ressResp <- l $ listCdnResources { passwd, login }
+      llog $ writeJSON ressResp
+
+      case find (\r -> r.label == resName) ressResp.cdnResources of
+        Just x -> llog "Permament test storage already exists" *> pure unit
+        Nothing -> do
+            llog "Creating permament resource for testing purposes"
+            resResp <- l $ createCdnResource_ { passwd, login, label: resName, type: ResourceTypeStandard, storage_id: store.id }
+            llog $ writeJSON resResp
+
+
+  cdn77T test  "Create, edit and manipulate storage" $
     \ { login, passwd } -> do
 
       llog "Listing available storage locations:"
@@ -96,9 +112,9 @@ cdn77ApiTestSuite = do
       llog "Deleting temporary storage"
       void $ l $ deleteStorage { passwd, login, id: store2.storage.id }
 
-  cdn77T testSkip  "Create, edit and manipulate resource" $
+  cdn77T test "Create, edit and manipulate resource" $
     \ { login, passwd } -> do
-      llog "Listing available storage locations:"
+      llog "Listing availabte storage locations:"
       locs <- l (listStorageLocations { login, passwd } )
       llog $ show locs
 
@@ -132,14 +148,15 @@ cdn77ApiTestSuite = do
       assert "Resources should contain newly created one"
         (r1 `elem` ress.cdnResources)
 
-      llog "Editing resource:"
+      llog "Editing resource and disabling storage:"
+      let storeTempChanged = storeTemp <> "changed"
       res1e <- l $ editCdnResource
-        { label: "changed", gp_type: Blacklist}
+        { label: storeTempChanged, gp_type: Blacklist, storage_id: disableStorage, origin_url:"lambdaterms.com"}
         { passwd, login, id: r1.id }
       llog $ writeJSON res1e
 
       assert "Edited resource asserts"
-        (res1e.cdnResource.id == r1.id && res1e.cdnResource.label == "changed")
+        (res1e.cdnResource.id == r1.id && res1e.cdnResource.label == storeTempChanged)
 
       llog "Deleting temporary storage"
       dsResp <- l $ deleteStorage
@@ -151,7 +168,7 @@ cdn77ApiTestSuite = do
         { passwd, login, id: r1.id }
       llog $ writeJSON dres
 
-  cdn77T test  "Get storage creds & manage file with sftp & make requests & check it" $
+  cdn77T test "Get storage creds & manage file with sftp & make requests & check it" $
     \ { login, passwd } -> do
 
       llog "Listing storages"
@@ -159,9 +176,8 @@ cdn77ApiTestSuite = do
       llog $ show storesResp
       llog $ "Looking for storage with zone_name: " <> storeName
 
-      store <- case find (\s -> s.zone_name == storeName) storesResp.storages of
-        Nothing -> throwError "Storage not found. You can create it with running one of prepared tests."
-        Just r -> pure r
+      store <- errOnNothing "Storage not found. You can create it with running one of prepared tests." $
+                 find (\s -> s.zone_name == storeName) storesResp.storages
 
       llog $ "Found matching storage with id: " <> show store.id
 
@@ -199,7 +215,7 @@ cdn77ApiTestSuite = do
       llog $ writeJSON ress
 
       llog $ "Looking for resource with added storage with id: " <> show store.id
-      res <- case find (\res -> toMaybe res.storage_id == Just store.id) ress.cdnResources of
+      res <- case find (\res -> res.storage_id == Just store.id) ress.cdnResources of
         Nothing -> do
           llog "Such resource not found. Let's create one."
           res <- l $ createCdnResource_
@@ -243,7 +259,7 @@ cdn77ApiTestSuite = do
       reqUrlsDetRes <- l $ listRequestUrl { cdn_id: res.id, request_id: req.id, login, passwd }
       llog $ writeJSON reqUrlsDetRes
 
-  cdn77T testSkip "Getting & showing report" $
+  cdn77T test "Getting & showing report" $
     \ { login, passwd } -> do
       let from = "1520950125"
           to = "1650950125"
@@ -313,7 +329,7 @@ maybeNullableJsonSuite = suite "Testing behaviour of Maybe (Nullable a)" $ do
   test "write nothing" $ do
     let str = writeJSON (testR (Nothing :: Maybe (Nullable Int)))
     llog' $ str
-    Assert.assert "Should't be included." ( str == writeJSON testUndef)
+    Assert.assert "Should't be included." ( str == writeJSON testUndef )
 
   test "write just" $ do
     let str = writeJSON (testR (Just (notNull 10)))
@@ -325,7 +341,32 @@ maybeNullableJsonSuite = suite "Testing behaviour of Maybe (Nullable a)" $ do
     llog' str
     Assert.assert "Should equal" ( str == writeJSON testNull)
 
+  test "read nothing" $ do
+    let j = readJSON readTestUndef :: E ({ a :: Maybe (Nullable Int), i :: Int, s :: String})
+    llog' $ show j
+    Assert.assert "Should parse and and equal with test case" ( j == Right (testR Nothing) )
+
+  test "read just" $ do
+    let j = (readJSON_ readTestJust) :: Maybe ({ a :: Maybe (Nullable Int), i :: Int, s :: String})
+    llog' $ show j
+    Assert.assert "Should parse and and equal with test case" ( j == Just (testR (Just (notNull 10))) )
+
+  test "read null" $ do
+    let j = (readJSON_ readTestNull) :: Maybe ({ a :: Maybe (Nullable Int), i :: Int, s :: String})
+    llog' $ show j
+    Assert.assert "Should parse and and equal with test case" ( j == Just (testR (Just null)) )
+
+  test "read maybe" $ do
+    let j = (readJSON_ readTestNull) :: Maybe ({ a :: Maybe Int, i :: Int, s :: String})
+    llog' $ show j
+    Assert.assert "Should parse and and equal with test case" ( j == Just testMaybe)
+
   where
+
+    readTestUndef = "{\"s\":\"foo\",\"i\":1}"
+    readTestNull = "{\"s\":\"foo\",\"i\":1,\"a\":null}"
+    readTestJust = "{\"s\":\"foo\",\"i\":1,\"a\":10}"
+
     testR :: forall a. WriteForeign a => Maybe (Nullable a) -> { a :: Maybe (Nullable a), i :: Int, s :: String}
     testR a = {a, i: 1, s: "foo"}
 
@@ -334,6 +375,9 @@ maybeNullableJsonSuite = suite "Testing behaviour of Maybe (Nullable a)" $ do
 
     testPresent :: forall a. a -> {a :: a, i :: Int, s :: String}
     testPresent a = {a, i: 1, s: "foo"}
+
+    testMaybe :: { a :: Maybe Int, i :: Int, s :: String}
+    testMaybe = {a: Nothing, i: 1, s: "foo"}
 
     testNull :: {a :: Nullable Int, i :: Int, s :: String}
     testNull = {a: null, i: 1, s: "foo"}
