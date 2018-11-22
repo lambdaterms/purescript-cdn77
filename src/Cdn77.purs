@@ -102,7 +102,7 @@ editCdnResource_ = readCdn77Response <<< post "/cdn-resource/edit"
 deleteCdnResource
   ∷ { login ∷ String, passwd ∷ String, id :: ResourceId }
   → ExceptT ApiCallError Aff (ApiResp ())
-deleteCdnResource = readCdn77Response <<< post "/cdn-resource/post"
+deleteCdnResource = readCdn77Response <<< post "/cdn-resource/delete"
 
 listCdnResources
   ∷ { login ∷ String, passwd ∷ String }
