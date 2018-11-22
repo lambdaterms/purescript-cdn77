@@ -40,7 +40,7 @@ import Request (get, post, post2)
 import Response (readCdn77Response)
 import Simple.JSON (class WriteForeignFields)
 import Type.Row (RProxy(..))
-import Types (ApiCallError, ApiRequest, ApiRequestUrl, ApiResp, CDNResourceDetails, Cdn77CreateResourceConfig, ResourceId, Report, ReportType, RequestId, RequestType, ResourceType, Storage, StorageId, StorageLocation, StorageLocationId, Timestamp, Cdn77EditResourceConfig, splitProtocols)
+import Types (ApiCallError, ApiRequest, ApiRequestUrl, ApiResp, CDNResourceDetails, Cdn77CreateResourceConfig, Cdn77EditResourceConfig, Report, ReportType, RequestId, RequestType, ResourceId, ResourceType, Storage, StorageId(..), StorageLocation, StorageLocationId, Timestamp, splitProtocols)
 
 -------------------------------------------------------
 --------------------- CDNResources --------------------
@@ -71,6 +71,9 @@ createCdnResource_
   ∷ { login ∷ String, passwd ∷ String, storage_id ∷ StorageId, label ∷ String, type ∷ ResourceType }
   → ExceptT ApiCallError Aff (ApiResp (cdnResource ∷ CDNResourceDetails))
 createCdnResource_ = readCdn77Response <<< post "/cdn-resource/create"
+
+disableStorage :: StorageId
+disableStorage = StorageId "0"
 
 editCdnResource
   ∷ ∀ provided providedJustified missing  allNothingified ret retNubbed nrl rl x
