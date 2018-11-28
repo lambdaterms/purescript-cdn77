@@ -1,4 +1,4 @@
-module Types where
+module Node.Network.Cdn77.Types where
 
 import Control.Applicative (pure)
 import Control.Bind (bind, (>=>), (>>=))
@@ -17,7 +17,7 @@ import Data.String (Pattern(..), split, trim)
 import Data.Traversable (sequence)
 import Foreign (F, Foreign, ForeignError(..))
 import Simple.JSON (class ReadForeign, class WriteForeign, readImpl, writeImpl, writeJSON)
-import Utils (coerceJsonHelperImpl)
+import Node.Network.Cdn77.Utils (coerceJsonHelperImpl)
 
 
 type ApiResponse a =

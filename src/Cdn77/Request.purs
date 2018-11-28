@@ -1,4 +1,4 @@
-module Request where
+module Node.Network.Cdn77.Request where
 
 import Affjax (Response)
 import Affjax as AffJax
@@ -12,7 +12,7 @@ import Data.Semigroup ((<>))
 -- import Debug.Trace (trace)
 import Effect.Aff (Aff)
 import Simple.JSON (class WriteForeign)
-import Utils (urlEncoded)
+import Node.Network.Cdn77.Utils (urlEncoded)
 
 apiUrl ∷ String
 apiUrl = "https://api.cdn77.com/v2.0"
@@ -56,7 +56,7 @@ post2 endpoint p1 p2 = AffJax.post ResponseFormat.json uri body
 --   in trace u $ const u
 
 -- post ∷ ∀ p. WriteForeign { | p } ⇒ String → { | p } → Aff (Response (Either ResponseFormat.ResponseFormatError Json))
--- post endpoint params = 
+-- post endpoint params =
 --   trace uri $ const $ trace body $ const $ AffJax.post ResponseFormat.json uri body
 --   where
 --     uri = (apiUrl <> endpoint)

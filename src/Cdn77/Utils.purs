@@ -1,4 +1,4 @@
-module Utils where
+module Node.Network.Cdn77.Utils where
 
 import Control.Category ((<<<))
 import Data.Either (Either(..))

@@ -1,8 +1,7 @@
 module Test.Main where
 
-import Types
+import Node.Network.Cdn77.Types
 
-import Cdn77 (addStorageCdnResources, createCdnResource, createCdnResource_, createStorage, deleteCdnResource, deleteStorage, editCdnResource, getCdnResourceDetails, getRequestDetails, listCdnResources, listRequestUrl, listRequests, listStorageLocations, listStorages, prefetch, purge, purgeAll, reportDetails, storageDetails)
 import Control.Alt ((<|>))
 import Control.Applicative ((*>))
 import Control.Bind ((>>=))
@@ -36,6 +35,8 @@ import Test.Unit.Main (runTest)
 import Test.Unit.QuickCheck (quickCheck)
 import Type.Proxy (Proxy(..))
 import Unsafe.Coerce (unsafeCoerce)
+
+import Node.Network.Cdn77 (addStorageCdnResources, createCdnResource, createCdnResource_, createStorage, deleteCdnResource, deleteStorage, editCdnResource, getCdnResourceDetails, getRequestDetails, listCdnResources, listRequestUrl, listRequests, listStorageLocations, listStorages, prefetch, purge, purgeAll, reportDetails, storageDetails)
 
 
 main :: Effect Unit
