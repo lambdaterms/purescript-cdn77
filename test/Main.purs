@@ -1,8 +1,6 @@
 module Test.Main where
 
-import Types
 
-import Cdn77 (addStorageCdnResources, createCdnResource, createCdnResource_, createStorage, deleteCdnResource, deleteStorage, editCdnResource, getCdnResourceDetails, getRequestDetails, listCdnResources, listRequestUrl, listRequests, listStorageLocations, listStorages, prefetch, purge, purgeAll, reportDetails, storageDetails)
 import Control.Alt ((<|>))
 import Control.Applicative ((*>))
 import Control.Bind ((>>=))
@@ -25,6 +23,7 @@ import Effect.Aff.Class (liftAff)
 import Effect.Class (liftEffect)
 import Effect.Console (log)
 import Foreign (Foreign)
+import Node.Network.Cdn77 (ApiCallError, FilterType(..), ReportType(..), RequestType(..), ResourceType(..), addStorageCdnResources, createCdnResource, createCdnResource_, createStorage, deleteCdnResource, deleteStorage, disableStorage, editCdnResource, getCdnResourceDetails, getRequestDetails, listCdnResources, listRequestUrl, listRequests, listStorageLocations, listStorages, prefetch, purge, purgeAll, reportDetails, storageDetails)
 import Node.Network.SftpClient (list, mkdir, fastPut, runSftpSession) as Sftp
 import Node.Process (lookupEnv)
 import Prelude (Unit, bind, discard, pure, ($), (<<<))
@@ -298,7 +297,7 @@ cdn77ApiTestSuite = do
       llog $ "Looking for resource with test id: " <> resName
       ress <- l $ listCdnResources { passwd, login }
       llog $ writeJSON ress
-      res <- errOnNothing "Couldn't not find. Cannot report." $ find (\res -> res.label == resName) ress.cdnResources
+      res <- errOnNothing "Couldn't not find. Cannot report." $ find (\res -> res.label == resName ) ress.cdnResources
 
       llog "Showing report for Bandwidth"
       repBandRes <- l $ reportDetails { login, passwd, type: Bandwidth, cdn_ids: [res.id], from, to }
@@ -313,7 +312,7 @@ cdn77ApiTestSuite = do
       llog $ show repTfcRes
 
       llog "Showing report for HitMiss"
-      repHtmsRes <- l $ reportDetails { login, passwd, type: Costs, cdn_ids: [res.id], from, to }
+      repHtmsRes <- l $ reportDetails { login, passwd, type: HitMiss, cdn_ids: [res.id], from, to }
       llog $ show repHtmsRes
 
 

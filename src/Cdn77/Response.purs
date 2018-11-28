@@ -1,4 +1,4 @@
-module Response where
+module Node.Network.Cdn77.Response where
 
 import Affjax (Response, ResponseFormatError)
 import Control.Applicative (pure)
@@ -17,9 +17,9 @@ import Effect.Aff (Aff, attempt)
 import Foreign (Foreign)
 import Foreign.Object (lookup)
 import Simple.JSON (class ReadForeign, class WriteForeign, read, write)
-import Types (ApiCallError(..), ApiResp)
+import Node.Network.Cdn77.Types (ApiCallError(..), ApiResp)
 import Unsafe.Coerce (unsafeCoerce)
-import Utils (coerceJsonHelperImpl, errorType)
+import Node.Network.Cdn77.Utils (coerceJsonHelperImpl, errorType)
 
 
 -- | Reads a "standard response" as defined in https://client.cdn77.com/support/api/version/2.0#standard-response,

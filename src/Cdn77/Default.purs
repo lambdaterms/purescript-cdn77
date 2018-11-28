@@ -1,4 +1,4 @@
-module Default where
+module Node.Network.Cdn77.Default where
 
 import Control.Category (identity, (<<<))
 import Data.Function (const)
