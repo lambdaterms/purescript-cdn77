@@ -10,7 +10,7 @@ https://client.cdn77.com/support/api/version/2.0/
 ## Original documentation and API
 
 The original https api documentaion is located at:  
-https://client.cdn77.com/support/api/version/2.0/ 
+https://client.cdn77.com/support/api/version/2.0/  
 Please refer to it whenever you find the code and its description not clear.
 
 ## Implementation Status
@@ -37,7 +37,7 @@ Only Node.js is supported platform.
 Intall the library in your project using bower.
 
 ```
-bower install adamczykm/purescript-cdn77
+bower install lambdaterms/purescript-cdn77
 ```
 
 ## Usage
